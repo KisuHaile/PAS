@@ -1,0 +1,552 @@
+<section class="item-master-page animate-fade-in">
+  <div class="sheet-shell">
+    <header class="sheet-topbar glass-effect">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">
+          <i class="bi bi-box-seam"></i>
+        </div>
+        <div>
+          <p class="eyebrow">AFRICOM ASSETS</p>
+          <h1>Inventory Master</h1>
+          <p class="page-subtitle">Manage the catalog, keep the database in sync, and react faster to low stock.</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="bulk-actions" [class.visible]="hasSelection()">
+          <span class="selection-count">{{ selectedItemCount() }} items selected</span>
+          <button type="button" class="action-btn action-btn--wide" (click)="onBulkEdit()" [disabled]="isSubmitting()" title="Bulk Edit">
+            <i class="bi bi-pencil-square"></i>
+            <span>Edit</span>
+          </button>
+          <button type="button" class="action-btn action-btn--wide" (click)="onBulkAdjust()" [disabled]="isSubmitting()" title="Update stock threshold">
+            <i class="bi bi-sliders"></i>
+            <span>Threshold</span>
+          </button>
+          <button type="button" class="action-btn action-btn--wide" (click)="onBulkExport()" [disabled]="isSubmitting()" title="Bulk Export">
+            <i class="bi bi-download"></i>
+            <span>Export</span>
+          </button>
+          <button type="button" class="action-btn action-btn--wide" (click)="onGenerateQR()" [disabled]="isSubmitting()" title="Generate QR Codes">
+            <i class="bi bi-qr-code"></i>
+            <span>QR</span>
+          </button>
+          <span class="divider"></span>
+          <button type="button" class="action-btn" (click)="selectLowStock()" [disabled]="isSubmitting()" title="Select Low Stock">
+            <i class="bi bi-exclamation-triangle"></i>
+          </button>
+          <button type="button" class="action-btn" (click)="selectOutOfStock()" [disabled]="isSubmitting()" title="Select Out of Stock">
+            <i class="bi bi-x-circle"></i>
+          </button>
+          <span class="divider"></span>
+        </div>
+
+        <button type="button" class="primary-pill" (click)="openCreatePanel()" [disabled]="isLoading() || isSubmitting()">
+          <i class="bi bi-plus-lg"></i>
+          Add New Item
+        </button>
+      </div>
+    </header>
+
+    @if (notice(); as pageNotice) {
+      <section class="notice-banner" [class.notice-success]="pageNotice.type === 'success'" [class.notice-error]="pageNotice.type === 'error'" [class.notice-info]="pageNotice.type === 'info'">
+        <div>
+          <strong>{{ pageNotice.title }}</strong>
+          <p>{{ pageNotice.message }}</p>
+        </div>
+        <button type="button" class="notice-close" (click)="dismissNotice()" aria-label="Dismiss notification">✕</button>
+      </section>
+    }
+
+    <section class="search-row glass-effect" aria-label="Item search and filters">
+      <label class="search-field">
+        <i class="bi bi-search"></i>
+        <input
+          type="search"
+          [value]="searchTerm()"
+          (input)="setSearchTerm($any($event.target).value)"
+          placeholder="Search by SKU, name or category..."
+          aria-label="Search items"
+        />
+      </label>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">Category</span>
+        <select [value]="categoryFilter()" (change)="setCategoryFilter($any($event.target).value)">
+          <option value="all">All Categories</option>
+          @for (cat of categories(); track cat.id) {
+            <option [value]="cat.id">{{ cat.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">Sort</span>
+        <select [value]="selectedSort()" (change)="setSort($any($event.target).value)">
+          <option value="name">Name (A-Z)</option>
+          <option value="stock">Stock Level</option>
+        </select>
+      </div>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">Status</span>
+        <select [value]="statusFilter()" (change)="setStatusFilter($any($event.target).value)">
+          <option value="all">All Status</option>
+          <option value="healthy">Healthy</option>
+          <option value="lowStock">Low Stock</option>
+          <option value="outOfStock">Out of Stock</option>
+        </select>
+      </div>
+
+      <button type="button" class="secondary-pill search-reset" (click)="resetFilters()">Reset Filters</button>
+    </section>
+
+    @if (showCreatePanel()) {
+      <section class="create-panel glass-effect animate-slide-down" aria-label="Create item panel">
+        <div class="create-panel__header">
+          <div>
+            <p class="section-label">Inventory Management</p>
+            <h2>Create New Item</h2>
+            <p class="create-subtitle">Add a new item to the master catalog</p>
+          </div>
+          <button type="button" class="close-btn" (click)="closeCreatePanel()">✕</button>
+        </div>
+
+        <form class="create-form" [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
+          <div class="form-grid">
+            <!-- SKU -->
+            <label class="form-field" [class.error]="createForm.get('sku')?.invalid && createForm.get('sku')?.touched">
+              <span class="field-label">SKU <span class="required-indicator">*</span></span>
+              <input
+                type="text"
+                formControlName="sku"
+                placeholder="e.g. OFF-DESK-001"
+                class="form-input"
+              />
+              @if (createForm.get('sku')?.invalid && createForm.get('sku')?.touched) {
+                <span class="error-message">
+                  @if (createForm.get('sku')?.errors?.['required']) {
+                    SKU is required.
+                  } @else if (createForm.get('sku')?.errors?.['minLength']) {
+                    SKU must be at least 3 characters.
+                  }
+                </span>
+              }
+            </label>
+
+            <!-- Item Name -->
+            <label class="form-field" [class.error]="createForm.get('itemName')?.invalid && createForm.get('itemName')?.touched">
+              <span class="field-label">Item Name <span class="required-indicator">*</span></span>
+              <input
+                type="text"
+                formControlName="itemName"
+                placeholder="e.g. Ergonomic Office Chair"
+                class="form-input"
+              />
+              @if (createForm.get('itemName')?.invalid && createForm.get('itemName')?.touched) {
+                <span class="error-message">
+                  @if (createForm.get('itemName')?.errors?.['required']) {
+                    Item name is required.
+                  } @else if (createForm.get('itemName')?.errors?.['minLength']) {
+                    Item name must be at least 2 characters.
+                  }
+                </span>
+              }
+            </label>
+
+            <!-- Category -->
+            <label class="form-field" [class.error]="createForm.get('categoryId')?.invalid && createForm.get('categoryId')?.touched">
+              <span class="field-label">Category <span class="required-indicator">*</span></span>
+              <select
+                #categorySelect
+                formControlName="categoryId"
+                (change)="onCategorySelect(categorySelect.value)"
+                class="form-input"
+              >
+                <option value="">Select a category</option>
+                @for (cat of categories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+              @if (createForm.get('categoryId')?.invalid && createForm.get('categoryId')?.touched) {
+                <span class="error-message">Category is required.</span>
+              }
+            </label>
+
+            <!-- Unit of Measure -->
+            <label class="form-field" [class.error]="createForm.get('unitOfMeasure')?.invalid && createForm.get('unitOfMeasure')?.touched">
+              <span class="field-label">Unit of Measure <span class="required-indicator">*</span></span>
+              <select
+                formControlName="unitOfMeasure"
+                class="form-input"
+              >
+                <option value="PCS">PCS</option>
+                <option value="Units">Units</option>
+                <option value="Box">Box</option>
+                <option value="Set">Set</option>
+                <option value="Carton">Carton</option>
+                <option value="Pallet">Pallet</option>
+                <option value="Bag">Bag</option>
+                <option value="Bundle">Bundle</option>
+              </select>
+              @if (createForm.get('unitOfMeasure')?.invalid && createForm.get('unitOfMeasure')?.touched) {
+                <span class="error-message">Unit of measure is required.</span>
+              }
+            </label>
+
+            <!-- Initial Stock -->
+            <label class="form-field" [class.error]="createForm.get('stockQuantity')?.invalid && createForm.get('stockQuantity')?.touched">
+              <span class="field-label">Initial Stock <span class="required-indicator">*</span></span>
+              <input
+                type="number"
+                formControlName="stockQuantity"
+                min="0"
+                placeholder="0"
+                class="form-input"
+              />
+              @if (createForm.get('stockQuantity')?.invalid && createForm.get('stockQuantity')?.touched) {
+                <span class="error-message">
+                  @if (createForm.get('stockQuantity')?.errors?.['required']) {
+                    Stock quantity is required.
+                  } @else if (createForm.get('stockQuantity')?.errors?.['min']) {
+                    Stock must be 0 or greater.
+                  }
+                </span>
+              }
+            </label>
+
+            <!-- Minimum Stock Level -->
+            <label class="form-field" [class.error]="createForm.get('minStockLevel')?.invalid && createForm.get('minStockLevel')?.touched">
+              <span class="field-label">Minimum Stock Level <span class="required-indicator">*</span></span>
+              <input
+                type="number"
+                formControlName="minStockLevel"
+                min="0"
+                placeholder="0"
+                class="form-input"
+              />
+              <span class="help-text">Reorder point for automatic alerts</span>
+              @if (createForm.get('minStockLevel')?.invalid && createForm.get('minStockLevel')?.touched) {
+                <span class="error-message">
+                  @if (createForm.get('minStockLevel')?.errors?.['required']) {
+                    Minimum stock level is required.
+                  } @else if (createForm.get('minStockLevel')?.errors?.['min']) {
+                    Must be 0 or greater.
+                  }
+                </span>
+              }
+            </label>
+          </div>
+
+          <!-- Checkboxes -->
+          <div class="form-checkboxes">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="requiresInspection" />
+              <span>Requires Inspection</span>
+              <span class="help-text">Check if this item needs QC inspection before use</span>
+            </label>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="create-actions">
+            <button type="button" class="secondary-pill" (click)="closeCreatePanel()">
+              <i class="bi bi-x-circle"></i> Cancel
+            </button>
+            <button
+              type="submit"
+              class="primary-pill"
+              [disabled]="createForm.invalid || isSubmitting()"
+            >
+              <i class="bi bi-check-circle"></i>
+              {{ isSubmitting() ? 'Saving...' : 'Save to Database' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    }
+
+    <section class="summary-grid" aria-label="Item master metrics">
+      @for (card of summaryCards(); track card.label) {
+        <article class="summary-card glass-effect" [class]="'accent-' + card.accent">
+          <div class="summary-card__header">
+            <span>{{ card.label }}</span>
+            <strong>{{ card.value }}</strong>
+            <small>{{ card.subtext }}</small>
+          </div>
+
+          <div class="sparkline" aria-hidden="true">
+            @for (segment of card.spark; track segment) {
+              <span [style.height.%]="segment"></span>
+            }
+          </div>
+        </article>
+      }
+    </section>
+
+    <section class="table-shell glass-effect">
+      <div class="table-toolbar">
+        <div>
+          <p class="section-label">Live Inventory Stream</p>
+          <h2>{{ filteredItems().length }} Records Found</h2>
+        </div>
+
+        <div class="toolbar-actions">
+          <button type="button" class="ghost-btn" (click)="printLabels()" title="Print"><i class="bi bi-printer"></i></button>
+          <button type="button" class="ghost-btn" (click)="exportVisible()" title="Export visible" [disabled]="isLoading()"><i class="bi bi-cloud-arrow-down"></i></button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (isLoading()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Syncing with inventory database...</p>
+          </div>
+        } @else {
+          <table class="premium-table">
+            <thead>
+              <tr>
+                <th class="checkbox-col">
+                  <input type="checkbox" [checked]="selectedItemCount() === filteredItems().length && filteredItems().length > 0" (change)="toggleAll()">
+                </th>
+                <th>Item Details</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>UoM</th>
+                <th>Current Stock</th>
+                <th>Reserved</th>
+                <th>Available</th>
+                <th>Min Level</th>
+                <th>Status</th>
+                <th class="text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (filteredItems().length === 0) {
+                <tr>
+                  <td colspan="11">
+                    <div class="empty-state">
+                      <i class="bi bi-inbox"></i>
+                      <h3>No items match the current filters</h3>
+                      <p>Clear the filters or add a new item to continue.</p>
+                      <div class="empty-actions">
+                        <button type="button" class="secondary-pill" (click)="resetFilters()">Reset Filters</button>
+                        <button type="button" class="primary-pill" (click)="openCreatePanel()">Add New Item</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                @for (item of filteredItems(); track item.id) {
+                  <tr [class.row-selected]="isSelected('' + item.id)">
+                    <td class="checkbox-col">
+                      <input type="checkbox" [checked]="isSelected('' + item.id)" (change)="toggleSelection('' + item.id)" [disabled]="isSubmitting()">
+                    </td>
+                    <td>
+                      <div class="item-info">
+                        <div class="item-icon">{{ item.itemName.charAt(0) }}</div>
+                        <div class="item-text">
+                          <span class="name">{{ item.itemName }}</span>
+                          <span class="id">UID: {{ ('' + item.id).split('-').pop() }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="sku-tag">{{ item.sku }}</span></td>
+                    <td>{{ item.categoryName || 'N/A' }}</td>
+                    <td>{{ item.unitOfMeasure }}</td>
+                    <td>
+                      <span [class.low-stock]="getCurrentStock(item) <= getMinimumStockLevel(item)">
+                        {{ getCurrentStock(item) }}
+                      </span>
+                    </td>
+                    <td>
+                      <span>{{ getReservedStock(item) }}</span>
+                    </td>
+                    <td>
+                      <span>{{ getAvailableStock(item) }}</span>
+                    </td>
+                    <td>
+                      <span>{{ getMinimumStockLevel(item) }}</span>
+                    </td>
+                    <td>
+                      <span class="status-badge" [class.active]="getStockStatus(item) === 'Healthy'" [class.low-stock]="getStockStatus(item) === 'Low Stock'" [class.out-stock]="getStockStatus(item) === 'Out of Stock'">
+                        {{ getStockStatus(item) }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <div class="row-actions">
+                        <button type="button" class="icon-btn" (click)="editItem(item)" [disabled]="isSubmitting()" title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button type="button" class="icon-btn danger" (click)="removeItem(item)" [disabled]="isSubmitting()" title="Delete"><i class="bi bi-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </section>
+
+    <footer class="page-footer glass-effect">
+      <span>Inventory Synchronization: Real-time</span>
+      <div class="footer-stats">
+        <span>Total: {{ totalItems() }}</span>
+        <span>|</span>
+        <span>Filtered: {{ filteredItems().length }}</span>
+      </div>
+    </footer>
+  </div>
+
+  @if (showEditModal()) {
+    <div class="modal-overlay animate-fade-in" (click)="closeEditModal()">
+      <div class="modal-shell glass-effect animate-slide-down" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <p class="section-label">Update Item</p>
+            <h2>Edit {{ editingItem()?.itemName }}</h2>
+          </div>
+          <button type="button" class="close-btn" (click)="closeEditModal()">✕</button>
+        </div>
+
+        <form class="create-form" [formGroup]="editForm" (ngSubmit)="submitEdit()" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>SKU Code</span>
+              <input type="text" formControlName="sku" placeholder="e.g. OFF-DESK-001" />
+            </label>
+
+            <label>
+              <span>Item Name</span>
+              <input type="text" formControlName="itemName" placeholder="e.g. Ergonomic Office Chair" />
+            </label>
+
+            <label>
+              <span>Category</span>
+              <select formControlName="categoryId">
+                @for (cat of categories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label>
+              <span>UoM</span>
+              <input type="text" formControlName="unitOfMeasure" placeholder="e.g. Piece, Set, Box" />
+            </label>
+
+            <label>
+              <span>Minimum Stock Level</span>
+              <input type="number" formControlName="minStockLevel" min="0" />
+            </label>
+
+            <label class="checkbox-field">
+              <span>Requires Inspection</span>
+              <input type="checkbox" formControlName="requiresInspection" />
+            </label>
+          </div>
+
+          <div class="create-actions">
+            <button type="button" class="secondary-pill" (click)="closeEditModal()">Cancel</button>
+            <button type="submit" class="primary-pill" [disabled]="editForm.invalid || isSubmitting()">{{ isSubmitting() ? 'Updating...' : 'Update Item' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  @if (showQrModal()) {
+    <div class="modal-overlay animate-fade-in" (click)="closeQrModal()">
+      <div class="modal-shell glass-effect animate-slide-down" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <p class="section-label">Label Generation</p>
+            <h2>QR Code Asset Tags</h2>
+          </div>
+          <button type="button" class="close-btn" (click)="closeQrModal()">✕</button>
+        </div>
+
+        <div class="modal-body qr-grid">
+          @for (item of qrItems(); track item.id) {
+            <div class="qr-card">
+              <div class="qr-image">
+                <img [src]="getQrUrl(item)" [alt]="item.itemName">
+              </div>
+              <div class="qr-details">
+                <strong>{{ item.itemName }}</strong>
+                <code>{{ item.sku }}</code>
+                <small>Stock: {{ getCurrentStock(item) }}</small>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="secondary-pill" (click)="closeQrModal()">Close</button>
+          <button type="button" class="primary-pill" (click)="printLabels()">
+            <i class="bi bi-printer"></i> Print Labels
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (showBulkActionModal()) {
+    <div class="modal-overlay animate-fade-in" (click)="closeBulkModal()">
+      <div class="modal-shell glass-effect animate-slide-down" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <p class="section-label">Bulk Process Selection</p>
+            <h2>
+              @switch (activeBulkAction()) {
+                @case ('edit') { Batch Edit Details }
+                @case ('adjust') { Stock Threshold Update }
+              }
+            </h2>
+          </div>
+          <button type="button" class="close-btn" (click)="closeBulkModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <form [formGroup]="bulkActionForm" class="bulk-form">
+            <p class="bulk-hint">Modifying {{ selectedItemCount() }} selected records.</p>
+
+            <div class="form-grid">
+              @if (activeBulkAction() === 'edit') {
+                <label>
+                  <span>Target Category</span>
+                  <select formControlName="categoryId">
+                    @for (cat of categories(); track cat.id) {
+                      <option [value]="cat.id">{{ cat.name }}</option>
+                    }
+                  </select>
+                </label>
+                <label>
+                  <span>Global UoM</span>
+                  <input type="text" formControlName="unitOfMeasure" placeholder="e.g. PCS" />
+                </label>
+                <label class="checkbox-field">
+                  <span>Requires Inspection</span>
+                  <input type="checkbox" formControlName="requiresInspection" />
+                </label>
+              }
+
+              @if (activeBulkAction() === 'adjust') {
+                <label>
+                  <span>Minimum Stock Delta</span>
+                  <input type="number" formControlName="minStockAdjustment" placeholder="e.g. 5 or -2" />
+                  <small>Updates the minimum stock threshold for each selected item.</small>
+                </label>
+              }
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="secondary-pill" (click)="closeBulkModal()">Cancel</button>
+          <button type="button" class="primary-pill" (click)="submitBulkAction()" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Applying...' : 'Apply to ' + selectedItemCount() + ' Items' }}</button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

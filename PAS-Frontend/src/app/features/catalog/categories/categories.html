@@ -1,0 +1,209 @@
+<section class="category-dashboard animate-fade-in">
+  <div class="sheet-shell">
+    <header class="sheet-topbar glass-effect">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">
+          <i class="bi bi-diagram-3"></i>
+        </div>
+        <div>
+          <p class="eyebrow">AFRICOM ASSETS</p>
+          <h1>Category Workspace</h1>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button type="button" class="primary-pill" (click)="openCreatePanel()">
+          <i class="bi bi-plus-lg"></i>
+          Create Category
+        </button>
+      </div>
+    </header>
+
+    <section class="search-row glass-effect" aria-label="Category search and filters">
+      <label class="search-field">
+        <i class="bi bi-search"></i>
+        <input
+          type="search"
+          [value]="searchTerm()"
+          (input)="setSearchTerm($any($event.target).value)"
+          placeholder="Search categories by name or description..."
+          aria-label="Search categories"
+        />
+      </label>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">Parent</span>
+        <select [value]="selectedParentFilter()" (change)="setParentFilter($any($event.target).value)">
+          @for (filter of parentFilters(); track filter.value) {
+            <option [value]="filter.value">{{ filter.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">Sort</span>
+        <select [value]="selectedSort()" (change)="setSort($any($event.target).value)">
+          <option value="name">By name</option>
+          <option value="items">By item count</option>
+          <option value="children">By sub-nodes</option>
+        </select>
+      </div>
+
+      <div class="compact-selectors">
+        <span class="meta-chip">View</span>
+        <select [value]="currentView()" (change)="setView($any($event.target).value)">
+          <option value="list">List View</option>
+          <option value="tree">Tree View</option>
+        </select>
+      </div>
+    </section>
+
+    @if (currentView() === 'create') {
+      <section class="create-panel glass-effect animate-slide-down" aria-label="Create category panel">
+        <div class="create-panel__header">
+          <div>
+            <p class="section-label">Hierarchy Management</p>
+            <h2>Create New Category</h2>
+          </div>
+          <button type="button" class="close-btn" (click)="setView('list')">✕</button>
+        </div>
+
+        <form class="create-form" [formGroup]="categoryForm" (ngSubmit)="saveCategory()" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>Category Name</span>
+              <input type="text" formControlName="name" placeholder="e.g. IT Equipment" />
+            </label>
+
+            <label>
+              <span>Description</span>
+              <input type="text" formControlName="description" placeholder="e.g. Laptops, servers, and peripherals" />
+            </label>
+
+            <label>
+              <span>Parent Category</span>
+              <select formControlName="parentCategoryId">
+                <option value="">Root (No Parent)</option>
+                @for (cat of categories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="create-actions">
+            <button type="button" class="secondary-pill" (click)="setView('list')">Cancel</button>
+            <button type="submit" class="primary-pill" [disabled]="categoryForm.invalid">Save Category</button>
+          </div>
+        </form>
+      </section>
+    }
+
+    <section class="summary-grid" aria-label="Category metrics">
+      @for (card of quickStats(); track card.label) {
+        <article class="summary-card glass-effect">
+          <div class="summary-card__header">
+            <span>{{ card.label }}</span>
+            <strong>{{ card.value }}</strong>
+            <small>Live catalog data</small>
+          </div>
+          <div class="sparkline" aria-hidden="true">
+            <span style="height: 42%"></span>
+            <span style="height: 66%"></span>
+            <span style="height: 58%"></span>
+            <span style="height: 78%"></span>
+            <span style="height: 61%"></span>
+          </div>
+        </article>
+      }
+    </section>
+
+    <section class="table-shell glass-effect">
+      <div class="table-toolbar">
+        <div>
+          <p class="section-label">Inventory Classification</p>
+          <h2>{{ categories().length }} Catalog Nodes</h2>
+        </div>
+        
+        <div class="toolbar-actions">
+          <a class="ghost-btn-link" routerLink="/catalog/items">
+            <i class="bi bi-box-seam"></i> Go to Items
+          </a>
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (isLoading()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Syncing categories...</p>
+          </div>
+        } @else {
+          @switch (currentView()) {
+            @case ('list') {
+              <table class="premium-table">
+                <thead>
+                  <tr>
+                    <th>Category Name</th>
+                    <th>Description</th>
+                    <th>Parent Node</th>
+                    <th>Sub-nodes</th>
+                    <th>Linked Items</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (category of categories(); track category.id) {
+                    <tr>
+                      <td>
+                        <div class="category-info">
+                          <div class="category-icon">{{ (category.name || '?').charAt(0) }}</div>
+                          <div class="category-text">
+                            <span class="name">{{ category.name }}</span>
+                            <span class="id">UID: {{ ('' + category.id).split('-').pop() }}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{{ category.description }}</td>
+                      <td>
+                        <span class="parent-tag" [class.root]="!category.parentCategoryName">
+                          {{ category.parentCategoryName || 'Root' }}
+                        </span>
+                      </td>
+                      <td>{{ category.subCategoriesCount || 0 }}</td>
+                      <td>{{ category.itemsCount || 0 }}</td>
+                      <td class="text-right">
+                        <div class="row-actions">
+                          <button class="icon-btn" (click)="removeCategory(category.id)"><i class="bi bi-trash"></i></button>
+                          <button class="icon-btn"><i class="bi bi-pencil"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+            @case ('tree') {
+              <div class="tree-placeholder">
+                <i class="bi bi-diagram-3"></i>
+                <p>Tree visualization is being optimized for large datasets.</p>
+              </div>
+            }
+          }
+        }
+      </div>
+    </section>
+
+    <footer class="page-footer glass-effect">
+      <div class="footer-left">
+        <i class="bi bi-shield-check"></i>
+        <span>Hierarchy integrity verified</span>
+      </div>
+      <div class="footer-right">
+        <span>AFRICOM Asset Management Platform v2.0</span>
+      </div>
+    </footer>
+  </div>
+</section>
+
+

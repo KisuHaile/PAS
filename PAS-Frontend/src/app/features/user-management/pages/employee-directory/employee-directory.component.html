@@ -1,0 +1,210 @@
+<section class="employee-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="bi bi-person-badge-fill"></i>
+      </div>
+      <div class="header-text">
+        <h1>Employee Directory</h1>
+        <p>Manage employee information, records, and system accounts</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="count-badge">{{ totalEmployees() }} employees</span>
+      <button type="button" class="action-btn secondary" (click)="showExportDropdown.set(!showExportDropdown())">
+        <i class="bi bi-download"></i> Export
+        <i class="bi bi-chevron-down"></i>
+      </button>
+      @if (showExportDropdown()) {
+        <div class="dropdown-menu">
+          <button type="button" (click)="exportEmployees('CSV')"><i class="bi bi-file-earmark-csv"></i> CSV</button>
+          <button type="button" (click)="exportEmployees('Excel')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+        </div>
+      }
+      <a class="action-btn primary" [routerLink]="['/admin/users/employees/add']"><i class="bi bi-plus-lg"></i> Add Employee</a>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-people"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Employees</span>
+          <span class="stat-value">{{ summaryStats().total }}</span>
+          <span class="stat-trend positive">{{ summaryStats().departments }} departments</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Active</span>
+          <span class="stat-value">{{ summaryStats().active }}</span>
+          <span class="stat-trend positive">{{ (summaryStats().active / Math.max(summaryStats().total, 1) * 100).toFixed(0) }}% of total</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-person-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">With Account</span>
+          <span class="stat-value">{{ summaryStats().withAccount }}</span>
+          <span class="stat-trend">{{ (summaryStats().withAccount / Math.max(summaryStats().total, 1) * 100).toFixed(0) }}% have system access</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-building"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Departments</span>
+          <span class="stat-value">{{ summaryStats().departments }}</span>
+          <span class="stat-trend">Across the organization</span>
+        </div>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="alert" role="alert"><i class="bi bi-exclamation-triangle"></i> {{ error() }}</div>
+    }
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div class="filter-field"><i class="bi bi-search"></i><input type="text" placeholder="Search by name, code, position..." [value]="searchQuery()" (input)="onSearch($event)"></div>
+        <div class="filter-field"><i class="bi bi-building"></i><select [value]="departmentFilter()" (change)="onDepartmentFilter($event)"><option value="All">All Departments</option><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Warehouse</option><option>Compliance</option><option>Property</option><option>Sales</option></select></div>
+        <div class="filter-field"><i class="bi bi-shield-check"></i><select [value]="statusFilter()" (change)="onStatusFilter($event)"><option value="All">All Status</option><option>Active</option><option>Inactive</option></select></div>
+        <div class="filter-field"><i class="bi bi-person-badge"></i><select [value]="positionFilter()" (change)="onPositionFilter($event)"><option value="All">All Positions</option><option>Manager</option><option>Officer</option><option>Staff</option><option>Assistant</option><option>Head</option><option>Analyst</option><option>Developer</option></select></div>
+      </div>
+      <button type="button" class="btn-filter" (click)="resetFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3><i class="bi bi-table"></i> Employees</h3>
+        <span class="result-count">{{ filteredEmployees().length }} result(s)</span>
+      </div>
+      <div class="panel-body no-padding">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Position</th>
+              <th>Contact</th>
+              <th>User Account</th>
+              <th>Join Date</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (emp of pagedEmployees(); track emp.id) {
+              <tr>
+                <td>
+                  <div class="employee-cell">
+                    <div class="avatar">{{ emp.avatar }}</div>
+                    <div class="employee-info">
+                      <span class="employee-name">{{ emp.name }}</span>
+                      <span class="employee-code">{{ emp.employeeCode }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="dept-badge"><i class="bi bi-building"></i> {{ emp.department }}</span></td>
+                <td class="position-cell">{{ emp.position || '—' }}</td>
+                <td>
+                  <div class="contact-cell">
+                    <span><i class="bi bi-envelope"></i> {{ emp.email || '—' }}</span>
+                    @if (emp.phone) { <span class="phone"><i class="bi bi-telephone"></i> {{ emp.phone }}</span> }
+                  </div>
+                </td>
+                <td>
+                  @if (emp.hasUserAccount) {
+                    <span class="badge badge-green"><i class="bi bi-check-circle"></i> Active</span>
+                  } @else {
+                    <span class="badge badge-gray"><i class="bi bi-x-circle"></i> None</span>
+                  }
+                </td>
+                <td class="time-cell">{{ formatDate(emp.joinDate) }}</td>
+                <td>
+                  <span class="status-badge" [class.active]="emp.status === 'Active'" [class.inactive]="emp.status === 'Inactive'">
+                    <span class="status-dot"></span> {{ emp.status }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button type="button" class="icon-btn" title="View" (click)="viewEmployee(emp)"><i class="bi bi-eye"></i></button>
+                    <button type="button" class="icon-btn" title="Edit" (click)="editEmployee(emp)"><i class="bi bi-pencil"></i></button>
+                    @if (!emp.hasUserAccount) {
+                      <button type="button" class="icon-btn" title="Create Account" (click)="createUserAccount(emp)"><i class="bi bi-person-plus"></i></button>
+                    }
+                    <button type="button" class="icon-btn danger" title="Delete" (click)="deleteEmployee(emp)"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="empty-state"><i class="bi bi-people"></i> No employees found matching your filters</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination-bar">
+      <div class="pagination-info">Showing {{ displayRange().start }}–{{ displayRange().end }} of {{ filteredEmployees().length }}</div>
+      <div class="pagination-controls">
+        <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)"><i class="bi bi-chevron-left"></i></button>
+        @for (page of [].constructor(totalPages()); track $index) {
+          <button class="page-btn" [class.active]="currentPage() === $index + 1" (click)="goToPage($index + 1)">{{ $index + 1 }}</button>
+        }
+        <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="rows-per-page">
+        <select [value]="rowsPerPage()" (change)="onRowsPerPageChange($event)">
+          <option>10</option><option>20</option><option>50</option>
+        </select> per page
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- Detail Modal -->
+@if (showDetailModal() && selectedEmployee(); as emp) {
+  <div class="modal-overlay" (click)="closeDetailModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-avatar" [style.background]="emp.hasUserAccount ? 'var(--primary-color)' : '#94a3b8'">{{ emp.avatar }}</div>
+          <div>
+            <h3>{{ emp.name }}</h3>
+            <p>{{ emp.position }} · {{ emp.employeeCode }}</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-section">
+          <h4>Personal Information</h4>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="label">Full Name</span><span class="value">{{ emp.name }}</span></div>
+            <div class="detail-item"><span class="label">Employee Code</span><span class="value">{{ emp.employeeCode }}</span></div>
+            <div class="detail-item"><span class="label">Status</span><span class="value"><span class="status-badge" [class.active]="emp.status === 'Active'" [class.inactive]="emp.status === 'Inactive'"><span class="status-dot"></span> {{ emp.status }}</span></span></div>
+            <div class="detail-item"><span class="label">Join Date</span><span class="value">{{ formatDate(emp.joinDate) }}</span></div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Employment Details</h4>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="label">Department</span><span class="value">{{ emp.department }}</span></div>
+            <div class="detail-item"><span class="label">Position</span><span class="value">{{ emp.position || '—' }}</span></div>
+            <div class="detail-item"><span class="label">User Account</span><span class="value">@if (emp.hasUserAccount) { <span class="badge badge-green">Active</span> } @else { <span class="badge badge-gray">None</span> }</span></div>
+            <div class="detail-item"><span class="label">Email</span><span class="value">{{ emp.email || '—' }}</span></div>
+            <div class="detail-item"><span class="label">Phone</span><span class="value">{{ emp.phone || '—' }}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeDetailModal()">Close</button>
+        @if (!emp.hasUserAccount) {
+          <button type="button" class="action-btn primary" (click)="closeDetailModal(); createUserAccount(emp)"><i class="bi bi-person-plus"></i> Create Account</button>
+        }
+      </div>
+    </div>
+  </div>
+}

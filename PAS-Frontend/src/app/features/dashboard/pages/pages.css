@@ -1,0 +1,261 @@
+.dashboard-shell {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.dashboard-main {
+  display: grid;
+  gap: 14px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0 0;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.dashboard-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.96rem;
+}
+
+.period-filter {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.period-filter button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.44rem 0.92rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.period-filter button.active {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.14);
+}
+
+.stats-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stat-card,
+.chart-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f2;
+  border-radius: 16px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+.stat-card {
+  position: relative;
+  padding: 14px 16px 14px;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+}
+
+.stat-card h2 {
+  margin: 0;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.stat-card h2 i {
+  color: #6366f1;
+  font-size: 0.92rem;
+}
+
+.stat-value {
+  margin: 10px 0 0;
+  color: #0f172a;
+  font-size: 2.15rem;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.stat-caption {
+  margin: 5px 0 0;
+  color: #5f708a;
+  font-size: 0.86rem;
+}
+
+.trend {
+  position: absolute;
+  top: 13px;
+  right: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #4338ca;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 0.14rem 0.46rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.trend.down {
+  color: #dc2626;
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.charts-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1.2fr 0.9fr;
+}
+
+.chart-card {
+  min-height: 340px;
+  padding: 12px 14px 14px;
+}
+
+.chart-title {
+  margin-bottom: 12px;
+  color: #1e293b;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.bar-chart {
+  position: relative;
+  height: 280px;
+  margin-top: 4px;
+  padding-left: 36px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-radius: 10px;
+  border-left: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bar-lines .line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #e5ebf3;
+}
+
+.bar-lines .line span {
+  position: absolute;
+  left: -28px;
+  top: -8px;
+  color: #6b7b94;
+  font-size: 0.74rem;
+}
+
+.bar-columns {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 0 12px 0 8px;
+}
+
+.bar-column {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 30px;
+}
+
+.bar {
+  width: 72%;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease;
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.28);
+  background: linear-gradient(180deg, #93c5fd 0%, #6366f1 100%);
+}
+
+.bar-column label {
+  position: absolute;
+  bottom: 8px;
+  color: #6b7b94;
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+
+.donut-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.donut-legend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  color: #6b7b94;
+  font-size: 0.95rem;
+}
+
+.donut-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.donut-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut {
+  width: min(235px, 90%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.9);
+}
+
+.donut::after {
+  content: '';
+  position: absolute;
+  inset: 72px;
+  background: #ffffff;
+  border-radius: 50%;
+}

@@ -1,0 +1,288 @@
+<div class="sakai-shell" [class.sakai-shell--overlay]="menuMode === 'overlay'">
+  <header class="sakai-topbar">
+    <div class="topbar-left">
+      <button
+        type="button"
+        class="topbar-menu-btn"
+        aria-label="Toggle menu"
+        [attr.aria-expanded]="sidebarOpen"
+        [class.topbar-menu-btn--active]="sidebarOpen"
+        (click)="toggleSidebar()"
+      >
+        <i class="bi bi-list"></i>
+      </button>
+      <a class="topbar-brand" [routerLink]="dashboardHomeRoute()">
+        <span class="brand-mark">AFRICOM</span>
+        <span class="brand-text">{{ activeTopbarLabel() }}</span>
+      </a>
+    </div>
+
+    <div class="topbar-right">
+      <button
+        type="button"
+        class="topbar-action-btn topbar-action-btn--theme"
+        [class.topbar-action-btn--open]="darkTheme"
+        aria-label="Toggle dark mode"
+        (click)="toggleDarkMode()"
+      >
+        <i class="bi" [class.bi-moon-stars-fill]="!darkTheme" [class.bi-sun-fill]="darkTheme"></i>
+      </button>
+
+      <div class="topbar-popover-wrap" (click)="keepPopoverOpen($event)">
+        <button
+          type="button"
+          class="topbar-action-btn topbar-action-btn--notifications"
+          [class.topbar-action-btn--open]="notificationsOpen"
+          aria-label="Open notifications"
+          [attr.aria-expanded]="notificationsOpen"
+          (click)="toggleNotifications($event)"
+        >
+          <i class="bi bi-bell"></i>
+          <span class="notification-badge" *ngIf="quickNotifications().length > 0">{{ quickNotifications().length }}</span>
+        </button>
+
+        @if (notificationsOpen) {
+          <section class="topbar-popover notifications-popover" aria-label="Recent notifications">
+            <header class="popover-header">
+              <div class="popover-header-content">
+                <h2>{{ notificationsPopoverTitle() }}</h2>
+                <span class="notification-count">{{ quickNotifications().length }} new</span>
+              </div>
+              <div class="popover-header-actions">
+                @if (quickNotifications().length > 0) {
+                  <button
+                    type="button"
+                    class="popover-mark-all-btn"
+                    title="Mark all as read"
+                    aria-label="Mark all notifications as read"
+                    (click)="markAllWorkflowNotificationsAsRead(); $event.stopPropagation()"
+                  >
+                    <i class="bi bi-check2-all"></i> Mark all read
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="popover-close"
+                  aria-label="Close notifications"
+                  title="Close notifications"
+                  (click)="closeNotifications($event)"
+                >
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </header>
+
+            <div class="popover-list">
+              @for (item of quickNotifications(); track item.title + item.time; let i = $index) {
+                <article class="popover-item">
+                  <div class="popover-item-icon" [class]="'popover-item-icon--' + (item.type || 'info')">
+                    <i class="bi" [class.bi-check-circle-fill]="item.type === 'approved' || item.type === 'completed'"
+                                  [class.bi-x-circle-fill]="item.type === 'rejected'"
+                                  [class.bi-clock-fill]="item.type === 'submitted'"
+                                  [class.bi-info-circle-fill]="!item.type || item.type === 'info'"></i>
+                  </div>
+                  <div class="popover-item-content">
+                    <p class="popover-item-title">{{ item.title }}</p>
+                    <p class="popover-item-text">{{ item.message }}</p>
+                    <span class="popover-item-time">{{ item.time }}</span>
+                  </div>
+                  <div class="popover-item-actions">
+                    <button
+                      type="button"
+                      class="popover-item-action-btn"
+                      title="Mark as read"
+                      aria-label="Mark notification as read"
+                      (click)="markWorkflowNotificationAsRead(item.id || ''); $event.stopPropagation()"
+                    >
+                      <i class="bi bi-check2"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="popover-item-action-btn popover-item-action-btn--dismiss"
+                      title="Dismiss"
+                      aria-label="Dismiss notification"
+                      (click)="dismissWorkflowNotification(item.id || ''); $event.stopPropagation()"
+                    >
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                </article>
+              } @empty {
+                <div class="popover-empty">
+                  <i class="bi bi-bell-slash"></i>
+                  <p>No new notifications</p>
+                </div>
+              }
+            </div>
+
+            <a
+              class="popover-link"
+              [routerLink]="notificationsRoute()"
+              (click)="closeNotifications($event)"
+            >
+              {{ viewAllNotificationsLabel() }}
+              <i class="bi bi-arrow-right"></i>
+            </a>
+          </section>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="topbar-action-btn topbar-action-btn--primary"
+        [class.topbar-action-btn--open]="configOpen"
+        aria-label="Open appearance config"
+        [attr.aria-expanded]="configOpen"
+        (click)="toggleConfig(); keepPopoverOpen($event)"
+      >
+        <i class="bi bi-palette2"></i>
+      </button>
+      <a
+        class="topbar-profile"
+        [routerLink]="profileRoute()"
+        [attr.aria-label]="(user?.fullName || user?.username || 'User') + ' profile'"
+      >
+        <img
+          class="topbar-profile__img"
+          [src]="profileImageUrl()"
+          [alt]="user?.fullName || 'Profile'"
+          (error)="$any($event.target).src = defaultAvatar"
+        />
+        <span class="topbar-profile__name">{{ user?.fullName || user?.username || 'User' }}</span>
+      </a>
+      <button type="button" class="logout-btn" (click)="logout()">
+        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <aside
+    class="theme-config"
+    [class.theme-config--open]="configOpen"
+    aria-label="Theme configurator"
+  >
+    <p class="theme-config__title">Appearance</p>
+
+    <p class="theme-config__label">Primary</p>
+    <div class="theme-swatches">
+      @for (option of primaryOptions; track option.id) {
+        <button
+          type="button"
+          class="swatch-btn"
+          [style.background]="option.value"
+          [class.swatch-btn--active]="selectedPrimary === option.id"
+          aria-label="{{ option.label }}"
+          title="{{ option.label }}"
+          (click)="setPrimary(option.id)"
+        ></button>
+      }
+    </div>
+
+    <p class="theme-config__label">Surface</p>
+    <div class="theme-swatches">
+      @for (option of surfaceOptions; track option.id) {
+        <button
+          type="button"
+          class="swatch-btn"
+          [style.background]="option.value"
+          [class.swatch-btn--active]="selectedSurface === option.id"
+          aria-label="{{ option.label }}"
+          title="{{ option.label }}"
+          (click)="setSurface(option.id)"
+        ></button>
+      }
+    </div>
+
+    <p class="theme-config__label">Menu Mode</p>
+    <div class="mode-buttons">
+      <button type="button" [class.active]="menuMode === 'static'" (click)="setMenuMode('static')">
+        Static
+      </button>
+      <button
+        type="button"
+        [class.active]="menuMode === 'overlay'"
+        (click)="setMenuMode('overlay')"
+      >
+        Overlay
+      </button>
+    </div>
+  </aside>
+
+  <div
+    class="sakai-body"
+    [class.sakai-body--sidebar-hidden]="menuMode === 'static' && !sidebarOpen"
+  >
+    <aside class="sakai-sidebar" [class.sakai-sidebar--open]="sidebarOpen">
+      <nav class="sakai-nav" aria-label="Main navigation">
+        @for (item of menuItems; track item.label) {
+          @if (item.children) {
+            <div class="sakai-nav-group">
+              <button type="button" class="sakai-nav-link sakai-nav-link--toggle" (click)="toggleMenuGroup(item.label)">
+                <i [class]="item.icon"></i>
+                <span>{{ item.label }}</span>
+                @if (item.badge) {
+                  <span class="sakai-badge">{{ item.badge }}</span>
+                }
+                <i class="bi bi-chevron-down sakai-nav-toggle-icon"></i>
+              </button>
+              @if (isMenuGroupOpen(item.label)) {
+                <div class="sakai-nav-submenu">
+                  @for (child of item.children; track child.label) {
+                    @if (child.route) {
+                      <a
+                        class="sakai-nav-link sakai-nav-link--sub"
+                        [routerLink]="child.route"
+                        routerLinkActive="sakai-nav-link--active"
+                        [routerLinkActiveOptions]="{ exact: false }"
+                        (click)="onSidebarItemClick()"
+                      >
+                        <i [class]="child.icon"></i>
+                        <span>{{ child.label }}</span>
+                        @if (child.badge) {
+                          <span class="sakai-badge">{{ child.badge }}</span>
+                        }
+                      </a>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          } @else if (item.route) {
+            <a
+              class="sakai-nav-link"
+              [routerLink]="item.route"
+              routerLinkActive="sakai-nav-link--active"
+              [routerLinkActiveOptions]="{ exact: false }"
+              (click)="onSidebarItemClick()"
+            >
+              <i [class]="item.icon"></i>
+              <span>{{ item.label }}</span>
+              @if (item.badge) {
+                <span class="sakai-badge">{{ item.badge }}</span>
+              }
+            </a>
+          }
+        }
+      </nav>
+    </aside>
+
+    <button
+      type="button"
+      class="sakai-overlay"
+      [class.sakai-overlay--visible]="sidebarOpen"
+      aria-label="Close sidebar"
+      (click)="closeSidebar()"
+    ></button>
+
+    <main class="sakai-content">
+      <section class="sakai-content-surface">
+        <router-outlet></router-outlet>
+      </section>
+      <footer class="sakai-content-footer">
+        <span>AFRICOM Asset Management Platform</span>
+        <span>{{ currentYear() }}</span>
+      </footer>
+    </main>
+  </div>
+</div>

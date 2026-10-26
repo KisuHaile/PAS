@@ -1,0 +1,329 @@
+<section class="inspection-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="bi bi-clipboard-check"></i>
+      </div>
+      <div class="header-text">
+        <h1>Pending Inspection</h1>
+        <p>Items awaiting quality inspection before stock release</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="count-badge">{{ summaryStats().total }} pending</span>
+      <button type="button" class="action-btn secondary" (click)="loadData()">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    @if (notification(); as n) {
+      <div class="notification-banner" [class.success]="n.type === 'success'" [class.error]="n.type === 'error'">
+        <i class="bi" [class.bi-check-circle-fill]="n.type === 'success'" [class.bi-exclamation-triangle-fill]="n.type === 'error'"></i>
+        <span>{{ n.message }}</span>
+        <button type="button" class="dismiss-btn" (click)="dismissNotification()"><i class="bi bi-x"></i></button>
+      </div>
+    }
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Pending</span>
+          <span class="stat-value">{{ summaryStats().total }}</span>
+          <span class="stat-trend">Awaiting inspection</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">High Priority</span>
+          <span class="stat-value">{{ summaryStats().highPriority }}</span>
+          <span class="stat-trend negative">Requires immediate attention</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow"><i class="bi bi-clock-history"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Medium Priority</span>
+          <span class="stat-value">{{ summaryStats().mediumPriority }}</span>
+          <span class="stat-trend">Standard queue</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-check2"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Low / In Progress</span>
+          <span class="stat-value">{{ summaryStats().lowPriority + summaryStats().inProgress }}</span>
+          <span class="stat-trend positive">{{ summaryStats().inProgress }} in progress</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div class="filter-field">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search by GRN# or supplier..." [value]="searchTerm()" (input)="onSearch($event)" />
+        </div>
+        <div class="filter-field">
+          <i class="bi bi-filter"></i>
+          <select [value]="priorityFilter()" (change)="onPriorityFilter($event)">
+            <option value="All">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-filter" (click)="resetFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+      </div>
+    </div>
+
+    @if (selectedIds().size > 0) {
+      <div class="bulk-actions-bar">
+        <div class="bulk-info">
+          <i class="bi bi-check-square"></i>
+          <span>{{ selectedIds().size }} selected</span>
+        </div>
+        <div class="bulk-buttons">
+          <button type="button" class="action-btn primary" (click)="bulkInspect()">
+            <i class="bi bi-clipboard-check"></i> Bulk Inspect
+          </button>
+          <button type="button" class="action-btn secondary" (click)="bulkRelease()">
+            <i class="bi bi-check-all"></i> Bulk Release
+          </button>
+          <button type="button" class="action-btn secondary" (click)="clearSelection()">
+            <i class="bi bi-x"></i> Clear Selection
+          </button>
+        </div>
+      </div>
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3><i class="bi bi-table"></i> Pending Inspections</h3>
+        <span class="result-count">{{ filteredPending().length }} result(s)</span>
+      </div>
+      <div class="panel-body no-padding">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="check-col">
+                <input type="checkbox" #selectAllCb (change)="selectAll($event)" [checked]="pagedPending().length > 0 && pagedPending().every(p => isSelected(p.id))" />
+              </th>
+              <th>GRN #</th>
+              <th>Supplier</th>
+              <th>Items</th>
+              <th>Priority</th>
+              <th>Received Date</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of pagedPending(); track item.id) {
+              <tr [class.selected]="isSelected(item.id)">
+                <td class="check-col">
+                  <input type="checkbox" [checked]="isSelected(item.id)" (change)="toggleSelect(item.id)" />
+                </td>
+                <td><span class="grn-cell">{{ item.grnNumber }}</span></td>
+                <td><span class="supplier-cell">{{ item.supplierName }}</span></td>
+                <td>{{ item.itemsToInspect }}</td>
+                <td>
+                  <span class="priority-badge" [class]="'priority-' + item.priority.toLowerCase()">
+                    <span class="priority-dot"></span> {{ item.priority }}
+                  </span>
+                </td>
+                <td class="time-cell">{{ item.receivedDate | date:'mediumDate' }}</td>
+                <td>
+                  <span class="status-badge" [class.pending]="item.status === 'Pending'" [class.in-progress]="item.status === 'In Progress'">
+                    <span class="status-dot"></span> {{ item.status }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button type="button" class="icon-btn" title="Start Inspection" (click)="startInspection(item)"><i class="bi bi-clipboard-check"></i></button>
+                    <button type="button" class="icon-btn" title="View GRN" (click)="viewGrn(item.id)"><i class="bi bi-eye"></i></button>
+                    <button type="button" class="icon-btn danger" title="Return to Supplier" (click)="confirmReturnToSupplier(item)"><i class="bi bi-arrow-return-left"></i></button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="empty-state">
+                  <i class="bi bi-inbox"></i>
+                  No pending inspections found matching your filters
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination-bar">
+      <div class="pagination-info">
+        Showing {{ displayRange().start }}–{{ displayRange().end }} of {{ filteredPending().length }}
+      </div>
+      <div class="pagination-controls">
+        <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        @for (page of [].constructor(totalPages()); track $index) {
+          <button class="page-btn" [class.active]="currentPage() === $index + 1" (click)="goToPage($index + 1)">
+            {{ $index + 1 }}
+          </button>
+        }
+        <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="rows-per-page">
+        <select [value]="rowsPerPage()" (change)="onRowsPerPageChange($event)">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+        per page
+      </div>
+    </div>
+  </main>
+</section>
+
+@if (showInspectModal() && selectedInspection(); as inspection) {
+  <div class="modal-overlay" (click)="closeInspectModal()">
+    <div class="modal-card modal-wide" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-avatar"><i class="bi bi-clipboard-check"></i></div>
+          <div>
+            <h3>Quality Inspection</h3>
+            <p>{{ inspection.grnNumber }} · {{ inspection.supplierName }}</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" (click)="closeInspectModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        @if (inspectForm(); as form) {
+          <div class="inspect-section">
+            <h4><i class="bi bi-person-badge"></i> Inspector Information</h4>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Inspector Name</label>
+                <input class="form-input" [value]="form.inspectorName" (input)="onInspectorNameChange($event)" placeholder="Enter inspector name" />
+              </div>
+              <div class="form-group">
+                <label>Inspection Date</label>
+                <input class="form-input" type="date" [value]="form.inspectionDate" (change)="onInspectionDateChange($event)" />
+              </div>
+            </div>
+          </div>
+
+          <div class="inspect-section">
+            <h4><i class="bi bi-list-check"></i> Item Inspection Results</h4>
+            @for (item of form.items; track item.itemName + $index; let i = $index) {
+              <div class="inspect-item-card">
+                <div class="inspect-item-header">
+                  <span class="item-title">{{ item.itemName }}</span>
+                  <span class="item-meta">{{ item.quantity }} units · Batch: {{ item.batchNumber }}</span>
+                </div>
+
+                <div class="inspection-checklist">
+                  <label class="checklist-item">
+                    <input type="checkbox" [checked]="item.checklist.packaging" (change)="onChecklistChange(i, 'packaging', $event)" />
+                    <span class="check-label">Packaging intact</span>
+                  </label>
+                  <label class="checklist-item">
+                    <input type="checkbox" [checked]="item.checklist.physicalCondition" (change)="onChecklistChange(i, 'physicalCondition', $event)" />
+                    <span class="check-label">Physical condition — no damage</span>
+                  </label>
+                  <label class="checklist-item">
+                    <input type="checkbox" [checked]="item.checklist.serialNumbers" (change)="onChecklistChange(i, 'serialNumbers', $event)" />
+                    <span class="check-label">Serial numbers match</span>
+                  </label>
+                  <label class="checklist-item">
+                    <input type="checkbox" [checked]="item.checklist.accessories" (change)="onChecklistChange(i, 'accessories', $event)" />
+                    <span class="check-label">Accessories included</span>
+                  </label>
+                  <label class="checklist-item">
+                    <input type="checkbox" [checked]="item.checklist.powerOnTest" (change)="onChecklistChange(i, 'powerOnTest', $event)" />
+                    <span class="check-label">Power on test passed</span>
+                  </label>
+                </div>
+
+                <div class="result-group">
+                  <span class="result-label">Result:</span>
+                  <label class="result-option">
+                    <input type="radio" [checked]="item.result === 'Pass'" (change)="onItemResultChange(i, 'Pass')" name="result-{{ i }}" />
+                    <span class="result-pass">Pass</span>
+                  </label>
+                  <label class="result-option">
+                    <input type="radio" [checked]="item.result === 'Fail'" (change)="onItemResultChange(i, 'Fail')" name="result-{{ i }}" />
+                    <span class="result-fail">Fail</span>
+                  </label>
+                  <label class="result-option">
+                    <input type="radio" [checked]="item.result === 'Partial'" (change)="onItemResultChange(i, 'Partial')" name="result-{{ i }}" />
+                    <span class="result-partial">Partial</span>
+                  </label>
+                </div>
+
+                <div class="form-group">
+                  <label>Comments</label>
+                  <input class="form-input" [value]="item.comments" (input)="onItemCommentsChange(i, $event)" placeholder="Inspection notes for this item" />
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="inspect-section">
+            <h4><i class="bi bi-arrow-left-right"></i> Disposition Decision</h4>
+            <p class="field-hint">For items that fail inspection:</p>
+            <div class="disposition-group">
+              @for (opt of ['Return to Supplier', 'Discount', 'Scrap', 'Re-inspect']; track opt) {
+                <label class="disposition-option">
+                  <input type="radio" [checked]="form.disposition === opt" (change)="onDispositionChange(opt)" name="disposition" />
+                  <span>{{ opt }}</span>
+                </label>
+              }
+            </div>
+          </div>
+
+          <div class="inspect-section">
+            <h4><i class="bi bi-chat-text"></i> General Comments</h4>
+            <textarea class="form-input form-textarea" [value]="form.generalComments" (input)="onGeneralCommentsChange($event)" placeholder="Additional notes or remarks..." rows="3"></textarea>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeInspectModal()">Cancel</button>
+        <button type="button" class="action-btn primary" (click)="saveInspection()"><i class="bi bi-check-lg"></i> Save Inspection</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showDeleteConfirm() && deleteTarget(); as target) {
+  <div class="modal-overlay" (click)="cancelReturnToSupplier()">
+    <div class="modal-card modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-arrow-return-left"></i> Return to Supplier</h3>
+        <button type="button" class="modal-close" (click)="cancelReturnToSupplier()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-content">
+          <div class="confirm-icon"><i class="bi bi-truck"></i></div>
+          <p>Mark <strong>{{ target.grnNumber }}</strong> as returned to supplier?</p>
+          <p class="confirm-user">Supplier: <strong>{{ target.supplierName }}</strong></p>
+          <p class="text-muted">This will remove it from the pending inspection list.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="cancelReturnToSupplier()">Cancel</button>
+        <button type="button" class="action-btn primary danger-btn" (click)="executeReturnToSupplier()"><i class="bi bi-check-lg"></i> Confirm Return</button>
+      </div>
+    </div>
+  </div>
+}

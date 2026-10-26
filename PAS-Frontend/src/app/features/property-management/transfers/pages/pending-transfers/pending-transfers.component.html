@@ -1,0 +1,425 @@
+<section class="transfers-page">
+
+  @if (notification(); as note) {
+    <div class="notification-banner" [class]="note.type" (click)="notification.set(null)">
+      <i class="bi {{ notificationIcon(note.type) }}"></i>
+      <span>{{ note.message }}</span>
+      <i class="bi bi-x close-notif"></i>
+    </div>
+  }
+
+  <header class="page-header">
+    <div class="header-icon">
+      <i class="bi bi-arrow-left-right"></i>
+    </div>
+    <div class="header-content">
+      <div class="header-text">
+        <h1>Pending Transfers</h1>
+        <p>{{ totalTransfers() }} transfer{{ totalTransfers() !== 1 ? 's' : '' }} — {{ pendingCount() }} pending approval</p>
+      </div>
+      @if (isMockBadge()) {
+        <div class="mock-badge">
+          <i class="bi bi-database-fill"></i> Sample Data
+        </div>
+      }
+    </div>
+    <div class="header-actions">
+      <button type="button" class="action-btn secondary" (click)="exportCSV()">
+        <i class="bi bi-download"></i> Export CSV
+      </button>
+    </div>
+  </header>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading transfers...</p>
+    </div>
+  }
+
+  @if (!isLoading()) {
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon violet">
+          <i class="bi bi-arrow-left-right"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Transfers</span>
+          <span class="stat-value">{{ totalTransfers() }}</span>
+        </div>
+        <span class="stat-trend">All time</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Pending Approval</span>
+          <span class="stat-value">{{ pendingCount() }}</span>
+        </div>
+        <span class="stat-trend">Awaiting decision</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">
+          <i class="bi bi-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Approved</span>
+          <span class="stat-value">{{ approvedCount() }}</span>
+        </div>
+        <span class="stat-trend">{{ approvedPct() }}% of total</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Urgent</span>
+          <span class="stat-value">{{ urgentCount() }}</span>
+        </div>
+        <span class="stat-trend">High priority</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <i class="bi bi-check2-all"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Completed</span>
+          <span class="stat-value">{{ completedCount() }}</span>
+        </div>
+        <span class="stat-trend">Successfully transferred</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon rose">
+          <i class="bi bi-x-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Rejected</span>
+          <span class="stat-value">{{ rejectedCount() }}</span>
+        </div>
+        <span class="stat-trend">Declined requests</span>
+      </div>
+    </section>
+
+    <section class="filter-bar">
+      <div class="filter-row">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search by ID, property, requester, or location..."
+            [ngModel]="searchTerm()" (ngModelChange)="onSearchInput($event)">
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select class="filter-select" [ngModel]="statusFilter()" (ngModelChange)="onStatusFilterChange($event)">
+            @for (s of statuses; track s) {
+              <option [value]="s">{{ s === 'All' ? 'All Statuses' : (s.charAt(0).toUpperCase() + s.slice(1)) }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Priority</label>
+          <select class="filter-select" [ngModel]="priorityFilter()" (ngModelChange)="onPriorityFilterChange($event)">
+            @for (p of priorities; track p) {
+              <option [value]="p">{{ p === 'All' ? 'All Priorities' : (p.charAt(0).toUpperCase() + p.slice(1)) }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>From</label>
+          <select class="filter-select" [ngModel]="fromLocationFilter()" (ngModelChange)="onFromLocationChange($event)">
+            @for (loc of fromLocations(); track loc) {
+              <option [value]="loc">{{ loc === 'All' ? 'All Locations' : loc }}</option>
+            }
+          </select>
+        </div>
+        <button type="button" class="icon-btn" (click)="clearFilters()" title="Clear filters">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+      @if (hasActiveFilters()) {
+        <div class="active-filters">
+          <span class="filter-chip">{{ filteredTransfers().length }} result{{ filteredTransfers().length !== 1 ? 's' : '' }}</span>
+        </div>
+      }
+    </section>
+
+    @if (filteredTransfers().length === 0) {
+      <div class="empty-state-card">
+        <i class="bi bi-arrow-left-right"></i>
+        <h3>No transfers found</h3>
+        <p>Try adjusting filters or submit a new transfer request.</p>
+        @if (hasActiveFilters()) {
+          <button class="action-btn secondary" (click)="clearFilters()">Clear Filters</button>
+        }
+      </div>
+    } @else {
+      <div class="panel">
+        <div class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Transfer ID</th>
+                <th>Property</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Requested By</th>
+                <th>Required By</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of pagedTransfers(); track t.id) {
+                <tr>
+                  <td>
+                    <div class="cell-name" (click)="openDetailModal(t)" style="cursor:pointer">
+                      <div class="cell-icon"><i class="bi bi-arrow-left-right"></i></div>
+                      <div>
+                        <span class="name">{{ t.id }}</span>
+                        <span class="meta">{{ formatDate(t.requestedDate) }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="prop-info">
+                      <span class="prop-name">{{ t.propertyName }}</span>
+                      <span class="prop-tag">{{ t.tagNumber }}</span>
+                    </div>
+                  </td>
+                  <td class="loc-cell" [title]="t.fromDetails">{{ t.fromLocation }}</td>
+                  <td class="loc-cell" [title]="t.toDetails">{{ t.toLocation }}</td>
+                  <td>{{ t.requestedBy }}</td>
+                  <td>{{ formatDate(t.requiredByDate) }}</td>
+                  <td>
+                    <span class="status-badge {{ getPriorityBadgeClass(t.priority) }}">
+                      <i class="bi {{ getPriorityIcon(t.priority) }}"></i>
+                      {{ t.priority }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="status-badge {{ getStatusBadgeClass(t.status) }}">
+                      <i class="bi {{ getStatusIcon(t.status) }}"></i>
+                      {{ t.status }}
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    <div class="row-actions">
+                      <button class="icon-btn" (click)="openDetailModal(t)" title="View"><i class="bi bi-eye"></i></button>
+                      @if (t.status === 'pending') {
+                        <button class="icon-btn" (click)="openApproveModal(t)" title="Approve"><i class="bi bi-check-lg" style="color:#16a34a"></i></button>
+                        <button class="icon-btn danger" (click)="rejectTransfer(t)" title="Reject"><i class="bi bi-x-lg"></i></button>
+                      }
+                      <button class="icon-btn danger" (click)="openDeleteModal(t)" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="9" class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>No transfers found</p>
+                    @if (hasActiveFilters()) {
+                      <button class="action-btn secondary" (click)="clearFilters()">Clear Filters</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (totalPages() > 1) {
+          <div class="pagination-bar">
+            <span class="page-info">Page {{ page() }} of {{ totalPages() }} ({{ filteredTransfers().length }} total)</span>
+            <div class="page-controls">
+              <button class="icon-btn" [disabled]="page() === 1" (click)="goToPage(page() - 1)">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              @for (p of [].constructor(totalPages()); track $index) {
+                <button class="page-btn" [class.active]="page() === $index + 1" (click)="goToPage($index + 1)">
+                  {{ $index + 1 }}
+                </button>
+              }
+              <button class="icon-btn" [disabled]="page() === totalPages()" (click)="goToPage(page() + 1)">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @if (loadError(); as err) {
+    @if (!isLoading()) {
+      <div class="error-banner">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>{{ err }}</span>
+        <button class="action-btn secondary" (click)="loadData()">
+          <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+      </div>
+    }
+  }
+
+</section>
+
+@if (showModal()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+
+      @if (modalMode() === 'detail') {
+        @let t = selectedTransfer();
+        @if (t) {
+          <div class="modal-header">
+            <h2><i class="bi bi-arrow-left-right"></i> {{ t.id }}</h2>
+            <button class="icon-btn" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="detail-grid">
+              <div class="detail-field full-width">
+                <span class="detail-label">Transfer ID</span>
+                <span class="detail-value monospace">{{ t.id }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                  <span class="status-badge {{ getStatusBadgeClass(t.status) }}">
+                    <i class="bi {{ getStatusIcon(t.status) }}"></i> {{ t.status }}
+                  </span>
+                </span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Priority</span>
+                <span class="detail-value">
+                  <span class="status-badge {{ getPriorityBadgeClass(t.priority) }}">
+                    <i class="bi {{ getPriorityIcon(t.priority) }}"></i> {{ t.priority }}
+                  </span>
+                </span>
+              </div>
+              <div class="detail-field full-width">
+                <span class="detail-label">Property</span>
+                <span class="detail-value">{{ t.propertyName }} ({{ t.tagNumber }}) — {{ t.propertyCategory }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Requested By</span>
+                <span class="detail-value">{{ t.requestedBy }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Department</span>
+                <span class="detail-value">{{ t.requesterDepartment }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Requested Date</span>
+                <span class="detail-value">{{ formatDate(t.requestedDate) }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-label">Required By</span>
+                <span class="detail-value">{{ formatDate(t.requiredByDate) }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4><i class="bi bi-geo-alt"></i> From Location</h4>
+              <div class="loc-detail-card">
+                <span class="loc-name">{{ t.fromLocation }}</span>
+                <span class="loc-desc">{{ t.fromDetails }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4><i class="bi bi-geo-alt-fill"></i> To Location</h4>
+              <div class="loc-detail-card">
+                <span class="loc-name">{{ t.toLocation }}</span>
+                <span class="loc-desc">{{ t.toDetails }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4><i class="bi bi-card-text"></i> Reason</h4>
+              <div class="reason-card">
+                <p>{{ t.reason }}</p>
+              </div>
+            </div>
+
+            @if (t.comments) {
+              <div class="detail-section">
+                <h4><i class="bi bi-chat-dots"></i> Comments</h4>
+                <div class="reason-card">
+                  <p>{{ t.comments }}</p>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="modal-footer">
+            <button class="action-btn secondary" (click)="closeModal()">Close</button>
+            @if (t.status === 'pending') {
+              <button class="action-btn primary" (click)="openApproveModal(t)"><i class="bi bi-check-lg"></i> Approve</button>
+            }
+          </div>
+        }
+      }
+
+      @if (modalMode() === 'approve') {
+        @let t = selectedTransfer();
+        @if (t) {
+          <div class="modal-header">
+            <h2><i class="bi bi-check-circle"></i> Approve Transfer</h2>
+            <button class="icon-btn" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="approve-summary">
+              <div class="approve-row">
+                <span class="approve-label">Transfer ID:</span>
+                <span class="approve-value monospace">{{ t.id }}</span>
+              </div>
+              <div class="approve-row">
+                <span class="approve-label">Property:</span>
+                <span class="approve-value">{{ t.propertyName }} ({{ t.tagNumber }})</span>
+              </div>
+              <div class="approve-row">
+                <span class="approve-label">From:</span>
+                <span class="approve-value">{{ t.fromLocation }}</span>
+              </div>
+              <div class="approve-row">
+                <span class="approve-label">To:</span>
+                <span class="approve-value">{{ t.toLocation }}</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="comments">Approval Comments</label>
+              <textarea id="comments" [(ngModel)]="approveComments" rows="3" placeholder="Optional approval notes..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="action-btn secondary" (click)="closeModal()">Cancel</button>
+            <button class="action-btn primary" (click)="approveTransfer()">
+              <i class="bi bi-check-lg"></i> Confirm Approval
+            </button>
+          </div>
+        }
+      }
+
+      @if (modalMode() === 'delete') {
+        @let t = transferToDelete();
+        @if (t) {
+          <div class="modal-header">
+            <h2><i class="bi bi-exclamation-triangle" style="color:#dc2626"></i> Confirm Delete</h2>
+            <button class="icon-btn" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="modal-body delete-body">
+            <div class="delete-icon"><i class="bi bi-trash3-fill"></i></div>
+            <p class="delete-warning">Delete transfer <strong>"{{ t.id }}"</strong>?</p>
+            <p class="delete-hint">This will permanently remove this transfer record from the system.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="action-btn secondary" (click)="closeModal()">Cancel</button>
+            <button class="action-btn danger" (click)="confirmDelete()"><i class="bi bi-trash"></i> Delete</button>
+          </div>
+        }
+      }
+
+    </div>
+  </div>
+}

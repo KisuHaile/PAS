@@ -1,0 +1,10 @@
+﻿.auth-layout {
+  min-height: 100vh;
+}
+
+.auth-layout__stage {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+

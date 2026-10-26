@@ -1,0 +1,846 @@
+<section class="employee-dashboard" aria-label="Employee dashboard">
+  @if (currentView === 'home') {
+    <header class="hero-banner">
+      <div class="hero-copy">
+        <p class="hero-eyebrow">Employee Dashboard</p>
+        <div class="hero-header-content">
+          <div class="hero-avatar">
+            @if (profilePhoto()) {
+              <img [src]="profilePhoto()" alt="Profile photo" class="avatar-img shadow-lg" />
+            } @else {
+              <div class="avatar-placeholder shadow-lg">
+                <i class="bi bi-person-fill"></i>
+              </div>
+            }
+          </div>
+          <div class="hero-text">
+            <h1>👋 {{ greeting }}, {{ userName() }}!</h1>
+            <p>Welcome</p>
+          </div>
+        </div>
+      </div>
+      <div class="dashboard-info-widget">
+        <div class="info-item">
+          <i class="bi bi-calendar3 info-icon text-primary"></i>
+          <span class="info-text">{{ currentDate }}</span>
+        </div>
+        <div class="info-item">
+          <i class="bi bi-clock info-icon text-secondary"></i>
+          <span class="info-text">{{ currentTime() }}</span>
+        </div>
+        <div class="info-item">
+          <i class="bi bi-geo-alt-fill info-icon text-danger"></i>
+          <span class="info-text">{{ currentLocation() }}</span>
+        </div>
+      </div>
+    </header>
+  } @else {
+    <header class="page-header">
+      <div>
+        <h1>{{ pageTitle }}</h1>
+        @if (pageSubtitle) {
+          <p>{{ pageSubtitle }}</p>
+        }
+      </div>
+      @if (currentView === 'profile') {
+        <button class="edit-profile-btn" (click)="editProfile()">
+          <i class="bi bi-pencil-square"></i> Edit Profile
+        </button>
+      }
+    </header>
+  }
+
+  @if (currentView === 'home') {
+    <section class="summary-section" aria-labelledby="summary-heading">
+      <h2 id="summary-heading" class="section-title">📊 MY REQUEST SUMMARY</h2>
+      <p class="summary-caption">{{ requestSummaryLabel() }}</p>
+      <div class="card-grid-5">
+        @for (card of summaryCards(); track card.title) {
+          <article class="summary-card summary-card--{{ card.tone }}">
+            <div class="card-header">
+              <p class="card-title">{{ card.title }}</p>
+              @if (card.subtitle) {
+                <p class="card-subtitle">{{ card.subtitle }}</p>
+              }
+            </div>
+            <p class="card-value">{{ card.value }}</p>
+            @if (card.trend) {
+              <p class="card-trend">{{ card.trend }}</p>
+            }
+          </article>
+        }
+      </div>
+    </section>
+
+    <section class="pending-requests-section" aria-labelledby="pending-heading">
+      <header class="panel-header panel-header--split">
+        <h2 id="pending-heading" class="section-title">
+          ⏳ PENDING REQUESTS ({{ pendingRequests().length }})
+        </h2>
+        <a routerLink="/employee/dashboard/my-requests">[View All →]</a>
+      </header>
+      <div class="pending-requests-list">
+        @for (request of pendingRequests(); track request.srNumber) {
+          <article class="pending-request-card">
+            <div class="pending-request-header">
+              <strong>
+                {{ getPriorityIcon(request.priority) }} {{ request.srNumber }} -
+                {{ request.priority }}
+              </strong>
+              <span class="required-date">Required: {{ request.requiredDate }}</span>
+            </div>
+            <p>Requested: {{ request.requestedDate }} | Waiting: {{ request.waitingTime }}</p>
+            <p>Items: {{ request.items.join(', ') }}</p>
+            <p class="status-text">Status: {{ getStatusIcon(request.status) }} Pending Approval</p>
+            <div class="pending-request-actions">
+              <button class="action-btn secondary" (click)="trackRequest(request.srNumber)">
+                [Track Request]
+              </button>
+              <button class="action-btn secondary" (click)="cancelRequest(request.srNumber)">
+                [Cancel Request]
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section class="request-trend-section" aria-labelledby="trend-heading">
+      <h2 id="trend-heading" class="section-title">📈 REQUEST TREND (Last 6 months)</h2>
+      <div class="trend-chart">
+        <svg viewBox="0 0 600 200" class="trend-svg">
+          <!-- Grid lines -->
+          <line x1="50" y1="20" x2="50" y2="180" stroke="#e0e0e0" stroke-width="1" />
+          <line x1="50" y1="180" x2="580" y2="180" stroke="#e0e0e0" stroke-width="1" />
+          <!-- Y-axis labels -->
+          <text x="40" y="25" text-anchor="end" font-size="12">8</text>
+          <text x="40" y="65" text-anchor="end" font-size="12">6</text>
+          <text x="40" y="105" text-anchor="end" font-size="12">4</text>
+          <text x="40" y="145" text-anchor="end" font-size="12">2</text>
+          <text x="40" y="185" text-anchor="end" font-size="12">0</text>
+          <!-- X-axis labels -->
+          <text x="100" y="195" text-anchor="middle" font-size="12">Jul</text>
+          <text x="180" y="195" text-anchor="middle" font-size="12">Aug</text>
+          <text x="260" y="195" text-anchor="middle" font-size="12">Sep</text>
+          <text x="340" y="195" text-anchor="middle" font-size="12">Oct</text>
+          <text x="420" y="195" text-anchor="middle" font-size="12">Nov</text>
+          <text x="500" y="195" text-anchor="middle" font-size="12">Dec</text>
+          <!-- Data lines -->
+          <polyline
+            points="100,140 180,120 260,100 340,80 420,60 500,100"
+            fill="none"
+            stroke="#0ea5e9"
+            stroke-width="2"
+          />
+          <polyline
+            points="100,160 180,140 260,120 340,100 420,80 500,140"
+            fill="none"
+            stroke="#22c55e"
+            stroke-width="2"
+          />
+          <polyline
+            points="100,160 180,140 260,120 340,100 420,80 500,160"
+            fill="none"
+            stroke="#f59e0b"
+            stroke-width="2"
+          />
+        </svg>
+        <div class="trend-legend">
+          <span><span class="legend-dot blue"></span> Submitted</span>
+          <span><span class="legend-dot green"></span> Approved</span>
+          <span><span class="legend-dot amber"></span> Completed</span>
+          <span><span class="legend-dot rose"></span> Rejected</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="quick-links-section" aria-labelledby="quick-links-heading">
+      <h2 id="quick-links-heading" class="section-title">🔔 QUICK LINKS</h2>
+      <div class="quick-links-grid">
+        @for (link of quickLinks; track link.label) {
+          @if (
+            link.label !== 'Create New Request' &&
+            link.label !== 'My Profile' &&
+            link.label !== 'My Requests' &&
+            link.label !== 'Return Materials'
+          ) {
+            <a class="quick-link-card" [routerLink]="link.route">
+              <span class="quick-link-icon">{{ link.icon }}</span>
+              <span class="quick-link-label">{{ link.label }}</span>
+            </a>
+          }
+        }
+      </div>
+    </section>
+  }
+
+  @if (currentView === 'new-request') {
+    <section class="panel" aria-labelledby="new-request-heading">
+      <h2 id="new-request-heading">Create New Request</h2>
+      <div class="simple-form-grid">
+        <label>
+          Item Name
+          <input type="text" value="Laptop" />
+        </label>
+        <label>
+          Quantity
+          <input type="number" value="1" min="1" />
+        </label>
+        <label class="full-width">
+          Note
+          <textarea rows="4">Need for office assignment.</textarea>
+        </label>
+      </div>
+      <div class="actions-row">
+        <a class="action-btn primary" (click)="submitRequest()">Submit Request</a>
+      </div>
+    </section>
+  }
+
+  @if (currentView === 'my-requests') {
+    <section class="panel" aria-labelledby="my-requests-heading">
+      <div class="search-filters">
+        <input type="text" placeholder="🔍 Search by SR#, item, date..." class="search-input" />
+        <div class="filter-row">
+          <label>
+            📅 Date:
+            <input type="date" value="2024-12-01" />
+            to
+            <input type="date" value="2024-12-15" />
+          </label>
+          <label>
+            🏷️ Status:
+            <select>
+              <option>All</option>
+              <option>Pending</option>
+              <option>Approved</option>
+              <option>Rejected</option>
+            </select>
+          </label>
+          <label>
+            ⭐ Priority:
+            <select>
+              <option>All</option>
+              <option>Urgent</option>
+              <option>Medium</option>
+              <option>Normal</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="my-requests-summary">
+        <div class="summary-stat">
+          <p>Total Requests (All Time)</p>
+          <strong>{{ requestSummary().total }}</strong>
+        </div>
+        <div class="summary-stat">
+          <p>Pending Approval</p>
+          <strong>{{ requestSummary().pending }}</strong>
+        </div>
+        <div class="summary-stat">
+          <p>Approved</p>
+          <strong>{{ requestSummary().approved }} 🟢 Ready</strong>
+        </div>
+        <div class="summary-stat">
+          <p>Rejected</p>
+          <strong>{{ requestSummary().rejected }} 🔴 Rejected</strong>
+        </div>
+        <div class="summary-stat">
+          <p>Completed</p>
+          <strong>{{ requestSummary().completed }} ✅ Done</strong>
+        </div>
+      </div>
+
+      <h2 id="my-requests-heading">📋 MY REQUESTS LIST</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">SR #</th>
+              <th scope="col">Date</th>
+              <th scope="col">Items</th>
+              <th scope="col">Priority</th>
+              <th scope="col">Status</th>
+              <th scope="col">Required By</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (request of workflowRequests(); track request.id) {
+              <tr>
+                <td>{{ request.srNumber }}</td>
+                <td>{{ request.submittedDate | date: 'shortDate' }}</td>
+                <td>{{ request.items.length }}</td>
+                <td>{{ getPriorityIcon(request.priority) }} {{ request.priority }}</td>
+                <td>
+                  <span
+                    class="status-pill"
+                    [class.status-pending]="['Submitted', 'Under Review'].includes(request.status)"
+                    [class.status-approved]="
+                      ['Manager Approved', 'Admin Approved', 'Compliance Review', 'Completed'].includes(
+                        request.status
+                      )
+                    "
+                    [class.status-rejected]="
+                      ['Manager Rejected', 'Admin Rejected'].includes(request.status)
+                    "
+                  >
+                    {{ getStatusIcon(request.status) }} {{ request.status }}
+                  </span>
+                </td>
+                <td>{{ request.requiredDate | date: 'shortDate' }}</td>
+                <td>
+                  <button class="icon-btn" title="View" (click)="viewRequest(request.srNumber)">
+                    👁️
+                  </button>
+                  @if (['Submitted', 'Under Review'].includes(request.status)) {
+                    <button class="icon-btn" title="Edit" (click)="editRequest(request.srNumber)">
+                      📝
+                    </button>
+                    <button
+                      class="icon-btn"
+                      title="Cancel"
+                      (click)="cancelRequest(request.srNumber)"
+                    >
+                      ❌
+                    </button>
+                  }
+                  <button class="icon-btn" title="Track" (click)="trackRequest(request.srNumber)">
+                    🔄
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="pagination-text">Showing 1-6 of 23 requests 1 2 → 2</p>
+    </section>
+  }
+
+  @if (currentView === 'my-activity') {
+    <section class="notifications-page" aria-labelledby="notif-heading">
+      <div class="notifications-header">
+        <h2 id="notif-heading">Notifications ({{ notifications().length }})</h2>
+        <button class="fancy-btn outline-success" (click)="markAllAsRead()">Mark All Read</button>
+      </div>
+
+      <div class="notifications-filters">
+        <div class="search-box">
+          <input type="text" placeholder="Search notifications..." />
+        </div>
+        <div class="filter-actions">
+          <select class="type-select" aria-label="Filter notifications by type">
+            <option>All Types</option>
+            <option>Approvals</option>
+            <option>Completions</option>
+          </select>
+          <button class="fancy-btn outline-success small" (click)="markAllAsRead()">
+            Mark Read
+          </button>
+        </div>
+      </div>
+
+      <div class="sub-section-header"><i class="bi bi-bell-fill"></i> ALL NOTIFICATIONS</div>
+
+      <div class="notifications-feed">
+        @for (notification of notifications(); track notification.id) {
+          <div class="fancy-notification-card" [class.unread]="!notification.read">
+            <div class="card-content">
+              <div class="card-top">
+                <div class="title-group">
+                  <span class="status-dot" [class]="notification.type"></span>
+                  <h3 class="notif-title">
+                    @if (notification.type === 'approved') {
+                      Request Approved -
+                    }
+                    @if (notification.type === 'completed') {
+                      Request Completed -
+                    }
+                    @if (notification.type === 'submitted') {
+                      Request Submitted -
+                    }
+                    {{ notification.requestId }}
+                  </h3>
+                </div>
+                <span class="notif-time">{{ notification.date }}</span>
+              </div>
+              <p class="notif-message">{{ notification.message }}</p>
+              <div class="notif-actions">
+                <button
+                  class="fancy-btn primary small"
+                  (click)="viewRequest(notification.requestId)"
+                >
+                  View Request
+                </button>
+                @if (notification.type === 'completed') {
+                  <button
+                    class="fancy-btn outline-primary small"
+                    (click)="viewSIV(notification.sivId!)"
+                  >
+                    View SIV
+                  </button>
+                  <button
+                    class="fancy-btn outline-primary small"
+                    (click)="downloadPDF(notification.sivId!)"
+                  >
+                    Download PDF
+                  </button>
+                }
+                <button
+                  class="fancy-btn secondary small"
+                  (click)="dismissNotification(notification.id)"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (currentView === 'profile') {
+    <section class="profile-section" aria-labelledby="profile-heading">
+      <section class="profile-info panel" aria-labelledby="profile-info-heading">
+        <h2 id="profile-info-heading" class="section-title">👤 PROFILE INFORMATION</h2>
+        <div class="profile-layout">
+          <div class="profile-photo">
+            <div class="photo-scan-container" [class.scanning]="isValidatingPhoto()">
+              @if (profilePhoto()) {
+                <img [src]="profilePhoto()!" alt="Profile photo" class="profile-image" />
+              } @else {
+                <div class="photo-placeholder">👤</div>
+              }
+
+              @if (isValidatingPhoto()) {
+                <div class="scan-overlay">
+                  <div class="scan-line"></div>
+                  <span class="scan-label">Scanning Face...</span>
+                </div>
+              }
+
+              @if (isUploadingPhoto()) {
+                <div class="scan-overlay upload-overlay">
+                  <div class="upload-spinner"></div>
+                  <span class="scan-label">Saving to server...</span>
+                </div>
+              }
+            </div>
+
+            @if (!isSelectingPhoto()) {
+              <button class="change-photo-btn" (click)="changePhoto()">Change Photo</button>
+            } @else {
+              <div class="inline-upload-container">
+                @if (!isCameraActive()) {
+                  <div class="method-toggles">
+                    <button class="btn-method" (click)="fileInput.click()">
+                      <i class="bi bi-cloud-arrow-up"></i> Upload
+                    </button>
+                    <button class="btn-method" (click)="startCamera()">
+                      <i class="bi bi-camera"></i> Camera
+                    </button>
+                    <input
+                      type="file"
+                      #fileInput
+                      class="file-input-hidden"
+                      (change)="onFileSelected($event)"
+                      accept="image/*"
+                      aria-label="Upload a profile photo"
+                      title="Upload a profile photo"
+                    />
+                  </div>
+                } @else {
+                  <div class="inline-camera-view">
+                    <video #videoElement autoplay muted></video>
+                    <canvas #canvasElement class="camera-canvas"></canvas>
+                    <button class="btn-capture" (click)="capturePhoto()">Capture</button>
+                  </div>
+                }
+
+                <div class="inline-actions">
+                  <button class="btn-cancel-upload" (click)="cancelUpload()">Cancel</button>
+                  <button
+                    class="btn-save-inline"
+                    (click)="isSelectingPhoto.set(false)"
+                    [disabled]="!profilePhoto()"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="profile-details">
+            <div class="detail-row"><strong>Full Name:</strong> {{ userProfile().fullName }}</div>
+            <div class="detail-row">
+              <strong>Employee Code:</strong> {{ userProfile().employeeCode }}
+            </div>
+            <div class="detail-row">
+              <strong>Department:</strong> {{ userProfile().department }}
+            </div>
+            <div class="detail-row"><strong>Email:</strong> {{ userProfile().email }}</div>
+            <div class="detail-row"><strong>Phone:</strong> {{ userProfile().phone }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="request-history panel" aria-labelledby="history-heading">
+        <h2 id="history-heading" class="section-title">📋 MY REQUEST HISTORY</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Year</th>
+                <th scope="col">Total Requests</th>
+                <th scope="col">Approved</th>
+                <th scope="col">Rejected</th>
+                <th scope="col">Completed</th>
+                <th scope="col">Approval Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2024</td>
+                <td>23</td>
+                <td>12</td>
+                <td>3</td>
+                <td>6</td>
+                <td>78% ████████████████████░░░░░░░░</td>
+              </tr>
+              <tr>
+                <td>2023</td>
+                <td>18</td>
+                <td>10</td>
+                <td>4</td>
+                <td>4</td>
+                <td>78% ████████████████████░░░░░░░░</td>
+              </tr>
+              <tr>
+                <td>2022</td>
+                <td>15</td>
+                <td>9</td>
+                <td>3</td>
+                <td>3</td>
+                <td>80% █████████████████████░░░░░░░</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="siv-section panel" aria-labelledby="siv-heading">
+        <h2 id="siv-heading" class="section-title">🧾 MY STORE ISSUE VOUCHERS (SIVs)</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">SIV #</th>
+                <th scope="col">Date</th>
+                <th scope="col">Items</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>SIV-045</td>
+                <td>Dec 15</td>
+                <td>Laptop (2)</td>
+                <td>✅ Issued</td>
+                <td>
+                  <button class="icon-btn" (click)="viewSIV('SIV-045')">👁️ View</button>
+                  <button class="icon-btn" (click)="downloadPDF('SIV-045')">🖨️ Print</button>
+                  <button class="icon-btn" (click)="emailSIV('SIV-045')">📧 Email</button>
+                </td>
+              </tr>
+              <tr>
+                <td>SIV-044</td>
+                <td>Dec 14</td>
+                <td>Monitor (1)</td>
+                <td>✅ Issued</td>
+                <td>
+                  <button class="icon-btn" (click)="viewSIV('SIV-044')">👁️ View</button>
+                  <button class="icon-btn" (click)="downloadPDF('SIV-044')">🖨️ Print</button>
+                  <button class="icon-btn" (click)="emailSIV('SIV-044')">📧 Email</button>
+                </td>
+              </tr>
+              <tr>
+                <td>SIV-042</td>
+                <td>Dec 12</td>
+                <td>Chair (2)</td>
+                <td>✅ Issued</td>
+                <td>
+                  <button class="icon-btn" (click)="viewSIV('SIV-042')">👁️ View</button>
+                  <button class="icon-btn" (click)="downloadPDF('SIV-042')">🖨️ Print</button>
+                  <button class="icon-btn" (click)="emailSIV('SIV-042')">📧 Email</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="pagination-text">Showing 1-3 of 12 SIVs 1 2 → 2</p>
+      </section>
+
+      <section class="notification-settings panel" aria-labelledby="notif-settings-heading">
+        <h2 id="notif-settings-heading" class="section-title">🔔 NOTIFICATION SETTINGS</h2>
+        <p class="section-description">
+          Manage how and when you receive notifications about your requests
+        </p>
+        <div class="checkbox-list">
+          <label>
+            <input
+              type="checkbox"
+              [(ngModel)]="notificationSettings().emailOnApproval"
+              (change)="saveNotificationSettings()"
+            />
+            <span>Email me when my request is approved</span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              [(ngModel)]="notificationSettings().emailOnRejection"
+              (change)="saveNotificationSettings()"
+            />
+            <span>Email me when my request is rejected</span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              [(ngModel)]="notificationSettings().emailOnReady"
+              (change)="saveNotificationSettings()"
+            />
+            <span>Email me when items are ready for pickup</span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              [(ngModel)]="notificationSettings().weeklySummary"
+              (change)="saveNotificationSettings()"
+            />
+            <span>Weekly request summary</span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              [(ngModel)]="notificationSettings().monthlyDigest"
+              (change)="saveNotificationSettings()"
+            />
+            <span>Monthly request digest</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="account-security panel" aria-labelledby="security-heading">
+        <h2 id="security-heading" class="section-title">🔐 ACCOUNT SECURITY</h2>
+        <div class="security-info">
+          <p><strong>Last Password Change:</strong> Nov 15, 2024</p>
+          <p><strong>Last Login:</strong> Dec 15, 2024 09:30 AM</p>
+          <div class="security-actions">
+            <button class="action-btn secondary" (click)="changePassword()">
+              [Change Password]
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="two-factor-auth panel" aria-labelledby="2fa-heading">
+        <div class="twofa-header">
+          <div class="twofa-title">
+            <i class="bi bi-shield-lock twofa-icon"></i>
+            <h2 id="2fa-heading">TWO-FACTOR AUTHENTICATION</h2>
+          </div>
+          @if (!twoFactorEnabled()) {
+            <button class="btn-enable-2fa" (click)="enable2FA()">Enable 2FA</button>
+          }
+        </div>
+
+        <div class="twofa-status">
+          <div class="status-indicator">
+            <span
+              class="status-dot"
+              [class.enabled]="twoFactorEnabled()"
+              [class.disabled]="!twoFactorEnabled()"
+            ></span>
+            <span class="status-text">{{ twoFactorEnabled() ? 'Enabled' : 'Disabled' }}</span>
+          </div>
+        </div>
+
+        @if (twoFactorEnabled()) {
+          <div class="twofa-settings">
+            <div class="setting-row">
+              <label for="twofa-method">2FA Method:</label>
+              <select
+                id="twofa-method"
+                class="twofa-select"
+                [value]="twoFactorMethod()"
+                (change)="updateTwoFactorMethod($event)"
+              >
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+                <option value="app">Authenticator App</option>
+              </select>
+            </div>
+
+            @if (twoFactorMethod() === 'sms') {
+              <div class="setting-row">
+                <label for="phone-number">Phone Number:</label>
+                <div class="phone-input-group">
+                  <input
+                    id="phone-number"
+                    type="tel"
+                    class="twofa-input"
+                    [value]="twoFactorPhone()"
+                    (input)="updateTwoFactorPhone($event)"
+                    placeholder="+251-XXX-XXXXXXX"
+                    [disabled]="twoFactorVerificationSent() || twoFactorSetupComplete()"
+                  />
+                  @if (!twoFactorVerificationSent() && !twoFactorSetupComplete()) {
+                    <button
+                      class="btn-save-phone"
+                      (click)="saveTwoFactorPhone()"
+                      [disabled]="!twoFactorPhone()"
+                      title="Send verification code"
+                    >
+                      Send Code
+                    </button>
+                  }
+                  @if (twoFactorSetupComplete()) {
+                    <span class="verification-status verified">✓ Verified</span>
+                  }
+                </div>
+              </div>
+
+              @if (twoFactorVerificationSent() && !twoFactorSetupComplete()) {
+                <div class="setting-row verification-row">
+                  <label for="verification-code">Verification Code:</label>
+                  <div class="verification-input-group">
+                    <input
+                      id="verification-code"
+                      type="text"
+                      class="twofa-input verification-input"
+                      [value]="twoFactorVerificationCode()"
+                      (input)="updateTwoFactorVerificationCode($event)"
+                      placeholder="Enter 6-digit code"
+                      maxlength="6"
+                    />
+                    <button
+                      class="btn-verify-code"
+                      (click)="verifyTwoFactorCode()"
+                      [disabled]="twoFactorVerificationCode().length !== 6"
+                      title="Verify code"
+                    >
+                      Verify
+                    </button>
+                  </div>
+                  <div class="verification-help">
+                    <p>Enter the 6-digit code sent to {{ twoFactorPhone() }}</p>
+                    <button class="btn-resend" (click)="resendVerificationCode()">
+                      Resend Code
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+
+            @if (twoFactorMethod() === 'email') {
+              <div class="setting-row">
+                <label>Email Address:</label>
+                <span class="readonly-value">{{ userProfile().email }}</span>
+              </div>
+            }
+
+            @if (twoFactorMethod() === 'app') {
+              <div class="setting-row">
+                <label>Authenticator App:</label>
+                <span class="readonly-value">Google Authenticator / Microsoft Authenticator</span>
+              </div>
+            }
+
+            <div class="twofa-actions">
+              <button class="btn-disable-2fa" (click)="disable2FA()">Disable 2FA</button>
+            </div>
+          </div>
+        }
+      </section>
+    </section>
+  }
+
+  @if (currentView === 'catalog-items') {
+    <section class="panel" aria-labelledby="catalog-items-heading">
+      <div class="search-filters">
+        <input type="text" placeholder="🔍 Search items..." class="search-input" />
+        <div class="filter-row">
+          <label>
+            📂 Category:
+            <select>
+              <option>All</option>
+              <option>Electronics</option>
+              <option>Furniture</option>
+              <option>Supplies</option>
+            </select>
+          </label>
+          <label>
+            📊 Status:
+            <select>
+              <option>All</option>
+              <option>Good</option>
+              <option>Low</option>
+              <option>Out of Stock</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <h2 id="catalog-items-heading">📋 ITEMS LIST VIEW (Table)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Item Name</th>
+              <th scope="col">Category</th>
+              <th scope="col">Available</th>
+              <th scope="col">Status</th>
+              <th scope="col">Last Restocked</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of catalogItems(); track item.sku) {
+              <tr>
+                <td>{{ item.sku }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ item.available }}</td>
+                <td>
+                  <span
+                    class="status-pill"
+                    [class.status-approved]="item.status === 'Good'"
+                    [class.status-pending]="item.status === 'Low'"
+                    [class.status-rejected]="item.status === 'Out of Stock'"
+                  >
+                    {{ item.status === 'Good' ? '🟢' : item.status === 'Low' ? '🟡' : '🔴' }}
+                    {{ item.status }}
+                  </span>
+                </td>
+                <td>{{ item.lastRestocked }}</td>
+                <td>
+                  <button class="icon-btn" title="Request Item" (click)="openCreateRequestModal()">
+                    📝 Request
+                  </button>
+                  <button class="icon-btn" title="View Details" (click)="viewCatalogItem(item.sku)">
+                    👁️ View
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="pagination-text">Showing 1-5 of 89 items 1 2 3 → 4</p>
+    </section>
+  }
+</section>

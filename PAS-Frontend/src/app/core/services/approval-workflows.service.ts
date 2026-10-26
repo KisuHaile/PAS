@@ -1,0 +1,64 @@
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { ApiService } from './api.service';
+import { ApiResponseModel } from '../models/api-response.model';
+
+export interface ApprovalWorkflowDto {
+  id: string;
+  workflowName?: string;
+  description?: string;
+  approversCount: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ApprovalWorkflowDetailDto extends ApprovalWorkflowDto {
+  approvers: WorkflowApproverDto[];
+}
+
+export interface WorkflowApproverDto {
+  id: string;
+  userId: string;
+  userName?: string;
+  approvalLevel: number;
+  assignedAt: string;
+}
+
+export interface CreateWorkflowCommand {
+  workflowName: string;
+  description?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  approverLevels?: number;
+}
+
+export interface UpdateWorkflowCommand {
+  id: string;
+  workflowName?: string;
+  description?: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class ApprovalWorkflowsService {
+  constructor(private apiService: ApiService) {}
+
+  getAll(params?: { searchTerm?: string }): Observable<ApiResponseModel<ApprovalWorkflowDto[]>> {
+    return this.apiService.get<ApprovalWorkflowDto[]>('ApprovalWorkflows', params);
+  }
+
+  getById(id: string): Observable<ApiResponseModel<ApprovalWorkflowDetailDto>> {
+    return this.apiService.get<ApprovalWorkflowDetailDto>(`ApprovalWorkflows/${id}`);
+  }
+
+  create(data: CreateWorkflowCommand): Observable<ApiResponseModel<string>> {
+    return this.apiService.post<string>('ApprovalWorkflows', data);
+  }
+
+  update(data: UpdateWorkflowCommand): Observable<ApiResponseModel<any>> {
+    return this.apiService.put<any>(`ApprovalWorkflows/${data.id}`, data);
+  }
+
+  delete(id: string): Observable<ApiResponseModel<any>> {
+    return this.apiService.delete<any>(`ApprovalWorkflows/${id}`);
+  }
+}

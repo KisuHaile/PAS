@@ -1,0 +1,60 @@
+<section class="panel">
+  <h2>Edit item</h2>
+  <p>{{ status() }}</p>
+
+  @if (items().length === 0) {
+    <p>Create an item first.</p>
+  } @else {
+    <label>
+      <span>Select item</span>
+      <select [value]="selectedItemId()" (change)="updateSelection($any($event.target).value)">
+        @for (item of items(); track item.id) {
+          <option [value]="item.id">{{ item.sku }} - {{ item.itemName }}</option>
+        }
+      </select>
+    </label>
+
+    <form [formGroup]="editForm" (ngSubmit)="saveItem()" novalidate>
+      <label>
+        <span>SKU</span>
+        <input type="text" formControlName="sku" />
+      </label>
+
+      <label>
+        <span>Name</span>
+        <input type="text" formControlName="itemName" />
+      </label>
+
+      <div class="grid-two">
+        <label>
+          <span>Category ID</span>
+          <input type="text" formControlName="categoryId" />
+        </label>
+
+        <label>
+          <span>Category name</span>
+          <input type="text" formControlName="categoryName" />
+        </label>
+      </div>
+
+      <div class="grid-two">
+        <label>
+          <span>UoM</span>
+          <input type="text" formControlName="unitOfMeasure" />
+        </label>
+
+        <label>
+          <span>Stock</span>
+          <input type="number" formControlName="stockQuantity" />
+        </label>
+      </div>
+
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isActive" />
+        <span>Is Active</span>
+      </label>
+
+      <button type="submit">Save changes</button>
+    </form>
+  }
+</section>

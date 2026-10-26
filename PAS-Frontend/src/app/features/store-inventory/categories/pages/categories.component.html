@@ -1,0 +1,419 @@
+<div class="categories-container">
+  <div class="page-header">
+    <div class="header-info">
+      <h1>Categories</h1>
+      <p class="subtitle">Organize items into hierarchical categories</p>
+    </div>
+    <button class="btn btn-primary" (click)="openAddModal()">
+      <i class="bi bi-plus-lg"></i> Add New
+    </button>
+  </div>
+
+  <!-- KPI Summary Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+        <i class="bi bi-folder"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Categories</span>
+        <span class="kpi-value">{{ totalCategories() }}</span>
+        <span class="kpi-trend up">
+          <i class="bi bi-arrow-up"></i> All categories
+        </span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+        <i class="bi bi-check-circle"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Active Categories</span>
+        <span class="kpi-value">{{ activeCategories() }}</span>
+        <span class="kpi-trend up">
+          <i class="bi bi-check2"></i> Active
+        </span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+        <i class="bi bi-box-seam"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Items</span>
+        <span class="kpi-value">{{ totalItemsAcrossCategories() }}</span>
+        <span class="kpi-trend up">
+          <i class="bi bi-box"></i> Across all categories
+        </span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+        <i class="bi bi-diagram-3"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Subcategories</span>
+        <span class="kpi-value">{{ totalSubcategories() }}</span>
+        <span class="kpi-trend">
+          <i class="bi bi-layers"></i> Nested groups
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-panel">
+    <div class="chart-card">
+      <div class="chart-header">
+        <i class="bi bi-bar-chart-fill"></i>
+        <span>Items per Category</span>
+      </div>
+      <div echarts [options]="categoryBarOpts" class="chart-box"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <i class="bi bi-pie-chart-fill"></i>
+        <span>Category Distribution</span>
+      </div>
+      <div echarts [options]="categoryPieOpts" class="chart-box"></div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" [value]="searchTerm()" (input)="onSearchChange($any($event.target).value)" placeholder="Search categories...">
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn" [class.active]="viewMode() === 'tree'" (click)="toggleViewMode('tree')">
+        <i class="bi bi-diagram-3"></i> Tree View
+      </button>
+      <button class="view-btn" [class.active]="viewMode() === 'list'" (click)="toggleViewMode('list')">
+        <i class="bi bi-list-ul"></i> List View
+      </button>
+    </div>
+  </div>
+
+  <!-- Tree View -->
+  @if (viewMode() === 'tree') {
+    <div class="tree-view-section">
+      @for (root of categoryTree(); track root.id) {
+        <div class="tree-root">
+          <div class="tree-node-header" (click)="openCategoryItemsModal(root)">
+            <span class="node-toggle"><i class="bi bi-chevron-down"></i></span>
+            <span class="node-icon folder"><i class="bi bi-folder-fill"></i></span>
+            <span class="node-name">{{ root.name }}</span>
+            <span class="node-badge">{{ root.itemsCount }} items</span>
+          </div>
+          @if (root.children.length > 0) {
+            <div class="tree-children">
+              @for (child of root.children; track child.id) {
+                <div class="tree-node">
+                  <div class="tree-node-header" (click)="openCategoryItemsModal(child)">
+                    <span class="node-toggle"><i class="bi bi-chevron-right"></i></span>
+                    <span class="node-icon subfolder"><i class="bi bi-folder"></i></span>
+                    <span class="node-name">{{ child.name }}</span>
+                    <span class="node-badge">{{ child.itemsCount }} items</span>
+                  </div>
+                  @if (child.children.length > 0) {
+                    <div class="tree-children">
+                      @for (grandchild of child.children; track grandchild.id) {
+                        <div class="tree-node leaf">
+                          <div class="tree-node-header" (click)="openCategoryItemsModal(grandchild)">
+                            <span class="node-icon leaf"><i class="bi bi-file-earmark"></i></span>
+                            <span class="node-name">{{ grandchild.name }}</span>
+                            <span class="node-badge">{{ grandchild.itemsCount }} items</span>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- List View -->
+  @if (viewMode() === 'list') {
+    <div class="list-view-section">
+      <div class="table-container">
+        <table class="categories-table">
+          <thead>
+            <tr>
+              <th>Category Name</th>
+              <th>Parent Category</th>
+              <th>Items Count</th>
+              <th>Subcategories</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (cat of filteredCategories(); track cat.id) {
+              <tr>
+                <td>
+                  <div class="cell-with-icon">
+                    <i class="bi bi-folder"></i>
+                    <span>{{ cat.name }}</span>
+                  </div>
+                </td>
+                <td>
+                  @if (cat.parentCategory !== '-') {
+                    <span class="parent-badge">{{ cat.parentCategory }}</span>
+                  } @else {
+                    <span class="parent-badge root">Root</span>
+                  }
+                </td>
+                <td>
+                  <div class="items-cell">
+                    <span class="items-count">{{ cat.itemsCount }}</span>
+                    <div class="progress-bar-mini">
+                      <div class="progress-fill" [style.width.%]="(cat.itemsCount / totalItemsAcrossCategories()) * 100"></div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ cat.subcategories }}</td>
+                <td>
+                  <span class="status-badge" [class.active]="cat.status === 'Active'" [class.inactive]="cat.status !== 'Active'">
+                    <span class="status-dot"></span>
+                    {{ cat.status }}
+                  </span>
+                </td>
+                <td>
+                  <div class="actions-cell">
+                    <button class="action-btn" (click)="openCategoryItemsModal(cat)" title="View">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="action-btn" (click)="editCategory(cat)" title="Edit">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="action-btn" (click)="deleteCategory(cat)" title="Delete">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                    @if (cat.subcategories > 0) {
+                      <button class="action-btn" (click)="viewSubcategories(cat)" title="Subcategories">
+                        <i class="bi bi-folder"></i>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-bar">
+        <div class="pagination-info">Showing {{ filteredCategories().length }} of {{ totalCategories() }} categories</div>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Add Category Modal -->
+@if (showAddModal()) {
+  <div class="modal-overlay" (click)="closeAddModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon">
+            <i class="bi bi-folder-plus"></i>
+          </div>
+          <div>
+            <h3>Add New Category</h3>
+            <p class="modal-subtitle">Create a new category in the hierarchy</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeAddModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()">
+          <div class="form-section">
+            <h4>Category Information</h4>
+            <div class="form-grid">
+              <div class="form-field full-width">
+                <label>Category Name <span class="required">*</span></label>
+                <input type="text" formControlName="name" placeholder="Enter category name">
+                @if (categoryForm.controls.name.invalid && categoryForm.controls.name.touched) {
+                  <p class="field-error">Category name is required (min 2 characters).</p>
+                }
+              </div>
+              <div class="form-field full-width">
+                <label>Parent Category</label>
+                <select formControlName="parentCategoryId">
+                  <option value="">None (Root Category)</option>
+                  @for (cat of categories(); track cat.id) {
+                    <option [value]="cat.id">{{ cat.name }}</option>
+                  }
+                </select>
+                <p class="field-hint">Leave empty to create a top-level category</p>
+              </div>
+              <div class="form-field full-width">
+                <label>Description</label>
+                <textarea rows="3" formControlName="description" placeholder="Enter category description"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeAddModal()" [disabled]="loading()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="loading()">
+              @if (loading()) {
+                <i class="bi bi-arrow-repeat spinning"></i> Saving...
+              } @else {
+                <i class="bi bi-check-lg"></i> Create Category
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Category Items Modal -->
+@if (showCategoryItemsModal() && selectedCategory()) {
+  <div class="modal-overlay" (click)="closeCategoryItemsModal()">
+    <div class="modal-content wide" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+            <i class="bi bi-folder"></i>
+          </div>
+          <div>
+            <h3>{{ selectedCategory()?.name }}</h3>
+            <p class="modal-subtitle">Category details and items</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeCategoryItemsModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Category Name</span>
+            <span class="detail-value">{{ selectedCategory()?.name }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Parent Category</span>
+            <span class="detail-value">{{ selectedCategory()?.parentCategory === '-' ? 'Root' : selectedCategory()?.parentCategory }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Total Items</span>
+            <span class="detail-value">{{ selectedCategory()?.itemsCount }} items</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Subcategories</span>
+            <span class="detail-value">{{ selectedCategory()?.subcategories }}</span>
+          </div>
+        </div>
+
+        <!-- Items in this category -->
+        <div class="info-section">
+          <h4>
+            <i class="bi bi-box-seam"></i>
+            Items in this Category
+          </h4>
+          <div class="table-container">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Item Name</th>
+                  <th>Subcategory</th>
+                  <th>Stock</th>
+                  <th>Price</th>
+                  <th>Total Value</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of categoryItems(); track item.sku) {
+                  <tr>
+                    <td><span class="sku-tag">{{ item.sku }}</span></td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.subcategory }}</td>
+                    <td>
+                      <div class="stock-indicator" [class.low]="item.stock < 20">
+                        <span class="stock-dot"></span>
+                        {{ item.stock }}
+                      </div>
+                    </td>
+                    <td>{{ formatValue(item.price) }}</td>
+                    <td><span class="value-tag">{{ formatValue(item.totalValue) }}</span></td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="action-btn" title="View"><i class="bi bi-eye"></i></button>
+                        <button class="action-btn" title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="action-btn" title="Stock"><i class="bi bi-box-seam"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subcategories -->
+        <div class="info-section">
+          <h4>
+            <i class="bi bi-diagram-3"></i>
+            Subcategories
+          </h4>
+          <div class="table-container">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Subcategory Name</th>
+                  <th>Items Count</th>
+                  <th>Total Value</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sub of subcategories(); track sub.id) {
+                  <tr>
+                    <td>
+                      <div class="cell-with-icon">
+                        <i class="bi bi-folder2"></i>
+                        <span>{{ sub.name }}</span>
+                      </div>
+                    </td>
+                    <td>{{ sub.itemsCount }}</td>
+                    <td>{{ formatValue(sub.totalValue) }}</td>
+                    <td>
+                      <span class="status-badge" [class.active]="sub.status === 'Active'" [class.inactive]="sub.status !== 'Active'">
+                        <span class="status-dot"></span>
+                        {{ sub.status }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="action-btn" title="View"><i class="bi bi-eye"></i></button>
+                        <button class="action-btn" title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="action-btn" title="Subcategories"><i class="bi bi-folder"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeCategoryItemsModal()">
+          <i class="bi bi-x-lg"></i> Close
+        </button>
+      </div>
+    </div>
+  </div>
+}
