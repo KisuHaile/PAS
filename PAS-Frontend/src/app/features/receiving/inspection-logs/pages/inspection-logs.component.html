@@ -1,0 +1,290 @@
+<section class="inspection-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="bi bi-clipboard-data"></i>
+      </div>
+      <div class="header-text">
+        <h1>Inspection Logs</h1>
+        <p>Historical record of all quality inspections across receiving</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="count-badge">{{ summaryStats().totalInspections }} inspections</span>
+      <button type="button" class="action-btn secondary" (click)="exportCSV()">
+        <i class="bi bi-download"></i> Export CSV
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    @if (notification(); as n) {
+      <div class="notification-banner" [class.success]="n.type === 'success'" [class.error]="n.type === 'error'">
+        <i class="bi" [class.bi-check-circle-fill]="n.type === 'success'" [class.bi-exclamation-triangle-fill]="n.type === 'error'"></i>
+        <span>{{ n.message }}</span>
+        <button type="button" class="dismiss-btn" (click)="dismissNotification()"><i class="bi bi-x"></i></button>
+      </div>
+    }
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-clipboard-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Inspections</span>
+          <span class="stat-value">{{ summaryStats().totalInspections }}</span>
+          <span class="stat-trend">All recorded inspections</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Pass Rate</span>
+          <span class="stat-value">{{ summaryStats().passRate }}%</span>
+          <span class="stat-trend positive">{{ summaryStats().passCount }} passed</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="bi bi-x-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Fail Rate</span>
+          <span class="stat-value">{{ summaryStats().failRate }}%</span>
+          <span class="stat-trend negative">{{ summaryStats().failCount }} failed</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-exclamation-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Partial Rate</span>
+          <span class="stat-value">{{ summaryStats().partialRate }}%</span>
+          <span class="stat-trend">{{ summaryStats().partialCount }} partial</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div class="filter-field">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search by GRN#, item, inspector..." [value]="searchTerm()" (input)="onSearch($any($event.target).value)">
+        </div>
+        <div class="filter-field">
+          <i class="bi bi-calendar"></i>
+          <input type="date" placeholder="Start date" [value]="dateStart()" (change)="onDateStartChange($any($event.target).value)">
+        </div>
+        <div class="filter-field">
+          <i class="bi bi-calendar"></i>
+          <input type="date" placeholder="End date" [value]="dateEnd()" (change)="onDateEndChange($any($event.target).value)">
+        </div>
+        <div class="filter-field">
+          <i class="bi bi-tag"></i>
+          <select [value]="resultFilter()" (change)="onResultFilter($any($event.target).value)">
+            @for (r of results; track r) {
+              <option [value]="r">{{ r === 'All' ? 'All Results' : r }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-field">
+          <i class="bi bi-person"></i>
+          <select [value]="inspectorFilter()" (change)="onInspectorFilter($any($event.target).value)">
+            @for (ins of inspectors(); track ins) {
+              <option [value]="ins">{{ ins }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-filter" (click)="resetFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+      </div>
+    </div>
+
+    <div class="panel chart-panel">
+      <div class="panel-header">
+        <h3><i class="bi bi-graph-up"></i> Quality Trends</h3>
+        <span class="result-count">Weekly summary</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-legend">
+          <span class="legend-item"><span class="dot pass"></span> Pass</span>
+          <span class="legend-item"><span class="dot fail"></span> Fail</span>
+          <span class="legend-item"><span class="dot partial"></span> Partial</span>
+        </div>
+        <div class="chart-container">
+          <div class="chart-bars-group">
+            @for (week of weekLabels; track $index) {
+              <div class="chart-column">
+                <div class="chart-bars-stack">
+                  <div class="chart-bar pass" [style.height.px]="chartPass()[$index]"></div>
+                  <div class="chart-bar fail" [style.height.px]="chartFail()[$index]"></div>
+                  <div class="chart-bar partial" [style.height.px]="chartPartial()[$index]"></div>
+                </div>
+                <div class="chart-labels">
+                  <span class="week-label">{{ week }}</span>
+                  <span class="count-label">{{ chartPass()[$index] + chartFail()[$index] + chartPartial()[$index] }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3><i class="bi bi-table"></i> Inspection Records</h3>
+        <span class="result-count">{{ filteredLogs().length }} result(s)</span>
+      </div>
+      <div class="panel-body no-padding">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>GRN#</th>
+              <th>Item</th>
+              <th>Inspector</th>
+              <th>Result</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of pagedLogs(); track log.id) {
+              <tr>
+                <td>{{ log.date }}</td>
+                <td><span class="grn-badge">{{ log.grnNumber }}</span></td>
+                <td>{{ log.itemName }}</td>
+                <td>{{ log.inspectorName }}</td>
+                <td>
+                  <span class="result-badge" [class.result-pass]="log.result === 'Pass'" [class.result-fail]="log.result === 'Fail'" [class.result-partial]="log.result === 'Partial'">
+                    <i class="bi" [class.bi-check-circle]="log.result === 'Pass'" [class.bi-x-circle]="log.result === 'Fail'" [class.bi-dash-circle]="log.result === 'Partial'"></i>
+                    {{ log.result }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <button type="button" class="icon-btn" title="View Details" (click)="openDetailModal(log)">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty-state"><i class="bi bi-search"></i> No inspection logs found matching your filters</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination-bar">
+      <div class="pagination-info">Showing {{ displayRange().start }}–{{ displayRange().end }} of {{ filteredLogs().length }}</div>
+      <div class="pagination-controls">
+        <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)"><i class="bi bi-chevron-left"></i></button>
+        @for (page of [].constructor(totalPages()); track $index) {
+          <button class="page-btn" [class.active]="currentPage() === $index + 1" (click)="goToPage($index + 1)">{{ $index + 1 }}</button>
+        }
+        <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="rows-per-page">
+        <select [value]="rowsPerPage()" (change)="onRowsPerPageChange($any($event.target).value)">
+          @for (opt of rowsOptions; track opt) {
+            <option [value]="opt">{{ opt }}</option>
+          }
+        </select> per page
+      </div>
+    </div>
+  </main>
+</section>
+
+@if (showDetailModal() && selectedLog(); as log) {
+  <div class="modal-overlay" (click)="closeDetailModal()">
+    <div class="modal-card modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-clipboard-data"></i> Inspection Details</h3>
+        <button type="button" class="modal-close" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-section">
+          <h4>Basic Information</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="label">GRN Number</span>
+              <span class="value">{{ log.grnNumber }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Supplier</span>
+              <span class="value">{{ log.supplierName }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Item</span>
+              <span class="value">{{ log.itemName }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Inspector</span>
+              <span class="value">{{ log.inspectorName }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Date</span>
+              <span class="value">{{ log.date }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Result</span>
+              <span class="value">
+                <span class="result-badge" [class.result-pass]="log.result === 'Pass'" [class.result-fail]="log.result === 'Fail'" [class.result-partial]="log.result === 'Partial'">
+                  <i class="bi" [class.bi-check-circle]="log.result === 'Pass'" [class.bi-x-circle]="log.result === 'Fail'" [class.bi-dash-circle]="log.result === 'Partial'"></i>
+                  {{ log.result }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Inspection Checklist</h4>
+          <div class="checklist-grid">
+            <div class="checklist-item" [class.checked]="log.checklist.packaging">
+              <i class="bi" [class.bi-check-circle-fill]="log.checklist.packaging" [class.bi-x-circle-fill]="!log.checklist.packaging"></i>
+              <span>Packaging</span>
+            </div>
+            <div class="checklist-item" [class.checked]="log.checklist.physicalCondition">
+              <i class="bi" [class.bi-check-circle-fill]="log.checklist.physicalCondition" [class.bi-x-circle-fill]="!log.checklist.physicalCondition"></i>
+              <span>Physical Condition</span>
+            </div>
+            <div class="checklist-item" [class.checked]="log.checklist.serialNumbers">
+              <i class="bi" [class.bi-check-circle-fill]="log.checklist.serialNumbers" [class.bi-x-circle-fill]="!log.checklist.serialNumbers"></i>
+              <span>Serial Numbers</span>
+            </div>
+            <div class="checklist-item" [class.checked]="log.checklist.accessories">
+              <i class="bi" [class.bi-check-circle-fill]="log.checklist.accessories" [class.bi-x-circle-fill]="!log.checklist.accessories"></i>
+              <span>Accessories</span>
+            </div>
+            <div class="checklist-item" [class.checked]="log.checklist.powerOnTest">
+              <i class="bi" [class.bi-check-circle-fill]="log.checklist.powerOnTest" [class.bi-x-circle-fill]="!log.checklist.powerOnTest"></i>
+              <span>Power On Test</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Details</h4>
+          <div class="detail-text">{{ log.details }}</div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Action Taken</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="label">Disposition</span>
+              <span class="value">{{ log.disposition }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Comments</span>
+              <span class="value">{{ log.comments }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeDetailModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}

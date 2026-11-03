@@ -1,0 +1,134 @@
+<div class="n-layout">
+  <div class="n-bg-orb n-bg-orb--1"></div>
+  <div class="n-bg-orb n-bg-orb--2"></div>
+
+  <header class="n-top">
+    <div class="n-top__brand">
+      <span class="n-top__icon">
+        <i class="bi bi-bell-fill"></i>
+      </span>
+      <div>
+        <span class="n-top__eyebrow">Notification Center</span>
+        <h1 class="n-top__title">Notifications</h1>
+      </div>
+    </div>
+    <div class="n-top__badges">
+      <div class="n-badge n-badge--unread">
+        <span class="n-badge__num">{{ unreadCount() }}</span>
+        <span class="n-badge__lbl">Unread</span>
+      </div>
+      <div class="n-badge">
+        <span class="n-badge__num">{{ notifications().length }}</span>
+        <span class="n-badge__lbl">Total</span>
+      </div>
+    </div>
+  </header>
+
+  @if (loadError()) {
+    <div class="n-alert" role="alert">
+      <i class="bi bi-wifi-off"></i>
+      <div>
+        <strong>Connection lost</strong>
+        <p>{{ loadError() }}</p>
+      </div>
+      <button class="n-alert__btn" (click)="loadNotifications()">Retry</button>
+    </div>
+  }
+
+  <div class="n-bar">
+    <div class="n-bar__search">
+      <i class="bi bi-search"></i>
+      <input
+        type="search"
+        placeholder="Search notifications…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)"
+        autocomplete="off"
+      />
+      @if (searchQuery()) {
+        <button class="n-bar__clear" (click)="onSearchInput('')"><i class="bi bi-x"></i></button>
+      }
+    </div>
+    <div class="n-bar__acts">
+      <button class="n-btn n-btn--icon" (click)="loadNotifications()" [disabled]="loading()" title="Refresh">
+        <i class="bi bi-arrow-clockwise" [class.spin]="loading()"></i>
+      </button>
+      <button class="n-btn n-btn--outline" (click)="markAllAsRead()" [disabled]="actionBusy() || unreadCount() === 0">
+        <i class="bi bi-check2-all"></i> Mark all read
+      </button>
+      <a class="n-btn n-btn--solid" [routerLink]="dashboardBackLink()">
+        <i class="bi bi-arrow-left"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="n-tabs">
+    <button class="n-tab" [class.on]="currentFilter() === 'all'" (click)="setFilter('all')">
+      <i class="bi bi-list-ul"></i> All
+    </button>
+    <button class="n-tab" [class.on]="currentFilter() === 'unread'" (click)="setFilter('unread')">
+      <i class="bi bi-envelope"></i> Unread
+      @if (unreadCount() > 0) {
+        <span class="n-tab__dot">{{ unreadCount() }}</span>
+      }
+    </button>
+  </div>
+
+  @if (loading() && notifications().length === 0) {
+    <div class="n-load">
+      <div class="n-load__spinner"></div>
+      <p>Loading notifications…</p>
+    </div>
+  }
+
+  <div class="n-feed">
+    @for (notification of filteredNotifications(); track notification.id) {
+      <div
+        class="n-feed__card"
+        [class.read]="notification.isRead"
+        [class.unread]="!notification.isRead"
+        [class.tone-success]="cardTone(notification) === 'tone-success'"
+        [class.tone-warning]="cardTone(notification) === 'tone-warning'"
+        [class.tone-error]="cardTone(notification) === 'tone-error'"
+        [class.tone-info]="cardTone(notification) === 'tone-info'"
+        (click)="markAsRead(notification.id, $event)"
+        role="button"
+        tabindex="0"
+        (keydown.enter)="markAsRead(notification.id, $event)"
+      >
+        <div class="n-card__accent"></div>
+        <div class="n-card__icon"><i class="bi {{ getIconClass(notification.message) }}"></i></div>
+        <div class="n-card__body">
+          <div class="n-card__top">
+            <span class="n-card__title">{{ previewTitle(notification.message) }}</span>
+            <span class="n-card__time">{{ formatTime(notification.sentDate) }}</span>
+          </div>
+          <p class="n-card__msg">{{ notification.message }}</p>
+        </div>
+        <div class="n-card__acts" (click)="$event.stopPropagation()">
+          @if (!notification.isRead) {
+            <button class="n-act n-act--read" title="Mark read" (click)="markAsRead(notification.id, $event)">
+              <i class="bi bi-envelope-open"></i>
+            </button>
+          }
+          <button class="n-act n-act--del" title="Dismiss" (click)="dismissNotification(notification.id, $event)">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+    } @empty {
+      @if (!loading()) {
+        <div class="n-empty">
+          <div class="n-empty__circle"><i class="bi bi-bell-slash"></i></div>
+          @if (notifications().length > 0) {
+            <h3>No matches</h3>
+            <p>Try a different search or switch to All.</p>
+          } @else {
+            <h3>All clear</h3>
+            <p>No notifications right now. New ones will show up here.</p>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>

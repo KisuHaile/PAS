@@ -1,0 +1,451 @@
+<section class="low-stock-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+      <div class="header-text">
+        <h1>Low Stock Alerts</h1>
+        <p>Monitor items below minimum threshold</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="count-badge">{{ allLowStock().length }} item(s)</span>
+      <button type="button" class="action-btn secondary" (click)="refreshData()">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+      <div class="dropdown-wrapper">
+        <button type="button" class="action-btn secondary" (click)="exportCSV()">
+          <i class="bi bi-download"></i> Export CSV
+        </button>
+      </div>
+    </div>
+  </header>
+
+  @if (notification(); as n) {
+    <div class="notification-banner" [class.success]="n.type === 'success'" [class.error]="n.type === 'error'">
+      <i class="bi" [class.bi-check-circle-fill]="n.type === 'success'" [class.bi-exclamation-triangle-fill]="n.type === 'error'"></i>
+      <span>{{ n.message }}</span>
+      <button type="button" class="dismiss-btn" (click)="dismissNotification()"><i class="bi bi-x"></i></button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading low stock alerts...</span>
+    </div>
+  }
+
+  @if (loadError(); as err) {
+    <div class="error-state">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>{{ err }}</span>
+      <button type="button" class="action-btn secondary" (click)="loadLowStock()">Retry</button>
+    </div>
+  }
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Total Alerts</span>
+        <span class="stat-value">{{ summaryStats().totalAlerts }}</span>
+        <span class="stat-trend">Items below threshold</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red"><i class="bi bi-exclamation-octagon-fill"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Critical</span>
+        <span class="stat-value">{{ summaryStats().critical }}</span>
+        <span class="stat-trend negative">{{ summaryStats().critical > 0 ? 'Immediate action' : 'None' }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange"><i class="bi bi-exclamation-diamond"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Warning</span>
+        <span class="stat-value">{{ summaryStats().warning }}</span>
+        <span class="stat-trend warning">{{ summaryStats().warning > 0 ? 'Needs attention' : 'None' }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue"><i class="bi bi-info-circle"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Info</span>
+        <span class="stat-value">{{ summaryStats().info }}</span>
+        <span class="stat-trend">Monitor closely</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="bi bi-shield-exclamation"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Items at Risk</span>
+        <span class="stat-value" [class.negative]="summaryStats().itemsAtRisk > 0">{{ summaryStats().itemsAtRisk }}</span>
+        <span class="stat-trend" [class.negative]="summaryStats().itemsAtRisk > 0">Critical + Warning</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon teal"><i class="bi bi-tags"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Categories Affected</span>
+        <span class="stat-value">{{ summaryStats().categoriesAffected }}</span>
+        <span class="stat-trend">Across warehouse(s)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="section-header">
+        <h3><i class="bi bi-pie-chart"></i> Severity Distribution</h3>
+      </div>
+      <div class="chart-body">
+        <div class="donut-wrapper">
+          <div class="donut-chart" [style]="donutStyle()">
+            <div class="donut-hole">
+              <span class="donut-total">{{ summaryStats().totalAlerts }}</span>
+              <span class="donut-label">Total</span>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <span class="legend-dot critical-dot"></span>
+              <span class="legend-text">Critical</span>
+              <span class="legend-count">{{ summaryStats().critical }}</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot warning-dot"></span>
+              <span class="legend-text">Warning</span>
+              <span class="legend-count">{{ summaryStats().warning }}</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot info-dot"></span>
+              <span class="legend-text">Info</span>
+              <span class="legend-count">{{ summaryStats().info }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="section-header">
+        <h3><i class="bi bi-bar-chart"></i> Category Breakdown</h3>
+      </div>
+      <div class="chart-body">
+        <div class="horiz-bar-list">
+          @for (cat of categoryBreakdown(); track cat.name) {
+            <div class="horiz-bar-item">
+              <div class="horiz-bar-info">
+                <span class="horiz-bar-name">{{ cat.name }}</span>
+                <span class="horiz-bar-count">{{ cat.count }} item(s)</span>
+              </div>
+              <div class="horiz-bar-track">
+                <div class="horiz-bar-fill severity-fill" [style.width.%]="cat.percentage"></div>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-chart">
+              <i class="bi bi-inbox"></i>
+              <span>No data available</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <div class="filter-field search-field">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search by item name or SKU..." [value]="searchQuery()" (input)="onSearch($event)">
+      </div>
+      <div class="filter-field">
+        <i class="bi bi-exclamation-triangle"></i>
+        <select [value]="severityFilter()" (change)="onSeverityFilterChange($event)">
+          <option value="All">All Severities</option>
+          <option value="Critical">Critical</option>
+          <option value="Warning">Warning</option>
+          <option value="Info">Info</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <i class="bi bi-building"></i>
+        <select [value]="warehouseFilter()" (change)="onWarehouseFilterChange($event)">
+          @for (wh of warehouses(); track wh) {
+            <option [value]="wh">{{ wh }}</option>
+          }
+        </select>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="btn-filter" (click)="resetFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h3><i class="bi bi-table"></i> Low Stock Items</h3>
+      <span class="result-count">{{ filteredItems().length }} result(s)</span>
+    </div>
+    <div class="panel-body no-padding">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Item Name</th>
+            <th>SKU</th>
+            <th class="text-right">Current Stock</th>
+            <th class="text-right">Min Threshold</th>
+            <th class="text-right">Deficit</th>
+            <th>Severity</th>
+            <th>Warehouse</th>
+            <th>Last Ordered</th>
+            <th class="text-right">Days Until Empty</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of pagedItems(); track item.id) {
+            <tr>
+              <td>
+                <div class="item-cell">
+                  <div class="item-avatar">{{ item.name.charAt(0) }}</div>
+                  <div>
+                    <div class="item-name">{{ item.name }}</div>
+                    <div class="item-meta">{{ item.unit }}</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono">{{ item.sku }}</span></td>
+              <td class="text-right">{{ formatNumber(item.current) }}</td>
+              <td class="text-right">{{ formatNumber(item.minStock) }}</td>
+              <td class="text-right">
+                <span class="deficit-value">{{ formatNumber(item.deficit) }}</span>
+              </td>
+              <td>
+                <span class="severity-badge" [class]="getSeverityClass(item.severity)">
+                  <i class="bi" [class]="getSeverityIcon(item.severity)"></i>
+                  {{ item.severity }}
+                </span>
+              </td>
+              <td>{{ item.warehouse }}</td>
+              <td>{{ formatDate(item.lastOrder) }}</td>
+              <td class="text-right">
+                <span class="days-badge" [class]="getDaysClass(item.daysUntilEmpty)">
+                  {{ item.daysUntilEmpty }}d
+                </span>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button type="button" class="icon-btn" title="View Details" (click)="openDetailModal(item)"><i class="bi bi-eye"></i></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="10" class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <span>No low stock items found</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="pagination-bar">
+    <div class="pagination-info">
+      Showing {{ displayRange().start }}&ndash;{{ displayRange().end }} of {{ displayRange().total }}
+    </div>
+    <div class="pagination-controls">
+      <button type="button" class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)"><i class="bi bi-chevron-left"></i></button>
+      @for (p of getPageArray(); track $index) {
+        <button type="button" class="page-btn" [class.active]="currentPage() === p" (click)="goToPage(p)">{{ p }}</button>
+      }
+      <button type="button" class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)"><i class="bi bi-chevron-right"></i></button>
+    </div>
+    <div class="rows-per-page">
+      <select [value]="rowsPerPage()" (change)="onRowsPerPageChange($event)">
+        <option>10</option>
+        <option>20</option>
+        <option>50</option>
+      </select> per page
+    </div>
+  </div>
+</section>
+
+@if (showDetailModal()) {
+  <div class="modal-overlay" (click)="closeDetailModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-info-circle"></i> {{ selName() }}</h3>
+        <button type="button" class="modal-close" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-section">
+          <h4>Item Information</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="label">Item Name</span>
+              <span class="value">{{ selName() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">SKU</span>
+              <span class="value mono">{{ selSku() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Warehouse</span>
+              <span class="value">{{ selWarehouse() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Location</span>
+              <span class="value">{{ selLocation() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Current Stock</span>
+              <span class="value negative">{{ formatNumber(selCurrent()) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Min Threshold</span>
+              <span class="value">{{ formatNumber(selMinStock()) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Deficit</span>
+              <span class="value negative">{{ formatNumber(selDeficit()) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Unit</span>
+              <span class="value">{{ selUnit() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Last Ordered</span>
+              <span class="value">{{ formatDate(selLastOrder()) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Days Until Empty</span>
+              <span class="value" [class.negative]="selDaysUntilEmpty() <= 7" [class.warning]="selDaysUntilEmpty() > 7 && selDaysUntilEmpty() <= 14">{{ selDaysUntilEmpty() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Severity</span>
+              <span class="value">
+                <span class="severity-badge" [class]="getSeverityClass(selSeverity())">
+                  <i class="bi" [class]="getSeverityIcon(selSeverity())"></i>
+                  {{ selSeverity() }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Reorder Suggestion</h4>
+          <div class="suggestion-card">
+            <div class="suggestion-row">
+              <span class="suggestion-label">Suggested Order Qty</span>
+              <span class="suggestion-value">{{ selSuggestedOrder() }} {{ selUnit() }}</span>
+            </div>
+            <div class="suggestion-row">
+              <span class="suggestion-label">Priority</span>
+              <span class="suggestion-value">
+                <span class="priority-badge" [class]="getSeverityClass(selSeverity())">
+                  {{ selSeverity() }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Stock History</h4>
+          @if (selectedHistory().length > 0) {
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th class="text-right">Quantity</th>
+                  <th>Reference</th>
+                  <th>Performed By</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (h of selectedHistory(); track $index) {
+                  <tr>
+                    <td class="time-cell">{{ formatDate(h.date) }}</td>
+                    <td>
+                      <span class="history-type" [class.in]="h.type === 'In'" [class.out]="h.type === 'Out'">
+                        <i class="bi" [class.bi-arrow-down-circle]="h.type === 'In'" [class.bi-arrow-up-circle]="h.type === 'Out'" [class.bi-arrow-left-right]="h.type !== 'In' && h.type !== 'Out'"></i>
+                        {{ h.type }}
+                      </span>
+                    </td>
+                    <td class="text-right mono" [class.positive]="h.type === 'In'" [class.negative]="h.type === 'Out'">
+                      {{ h.type === 'In' ? '+' : h.type === 'Out' ? '-' : '' }}{{ formatNumber(h.quantity) }}
+                    </td>
+                    <td class="mono">{{ h.reference }}</td>
+                    <td>{{ h.performedBy }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="no-history">No history records available for this item.</p>
+          }
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeDetailModal()">Close</button>
+        <button type="button" class="action-btn primary" (click)="openReorderModal()">
+          <i class="bi bi-cart-plus"></i> Order Now
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showReorderModal()) {
+  <div class="modal-overlay" (click)="closeReorderModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-cart-plus"></i> Create Purchase Order</h3>
+        <button type="button" class="modal-close" (click)="closeReorderModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-section">
+          <h4>Order Details</h4>
+          <div class="form-field">
+            <label>Item Name</label>
+            <input type="text" [value]="selName()" readonly>
+          </div>
+          <div class="form-field">
+            <label>Order Quantity *</label>
+            <div class="qty-input-wrapper">
+              <input type="number" [ngModel]="orderQuantity()" (ngModelChange)="orderQuantity.set($event)" min="1">
+              <span class="qty-unit">{{ selUnit() }}</span>
+            </div>
+            <span class="field-hint">Suggested: {{ selSuggestedOrder() }} {{ selUnit() }} (minimum to replenish)</span>
+          </div>
+          <div class="form-field">
+            <label>Priority</label>
+            <select [ngModel]="selSeverity()" disabled>
+              <option value="Critical">Critical - Urgent</option>
+              <option value="Warning">Warning - High</option>
+              <option value="Info">Info - Normal</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Notes</label>
+            <textarea [ngModel]="orderNotes()" (ngModelChange)="orderNotes.set($event)" rows="3"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeReorderModal()">Cancel</button>
+        <button type="button" class="action-btn primary" (click)="createOrder()">
+          <i class="bi bi-check-lg"></i> Create Purchase Order
+        </button>
+      </div>
+    </div>
+  </div>
+}

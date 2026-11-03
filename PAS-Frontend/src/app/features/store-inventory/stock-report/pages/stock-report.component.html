@@ -1,0 +1,364 @@
+<div class="stock-report-container">
+  <div class="page-header">
+    <div class="header-info">
+      <h1>Stock Report</h1>
+      <p class="subtitle">Live inventory valuation and movement analysis</p>
+    </div>
+    <div class="header-actions">
+      @if (lastRunTime()) {
+        <span class="last-run-time">Last run: {{ lastRunTime() | date: 'short' }}</span>
+      }
+      <button class="btn btn-primary" (click)="generateReport()" [disabled]="isLoading()">
+        @if (isLoading()) {
+          <i class="bi bi-arrow-repeat spinning"></i> Generating...
+        } @else {
+          <i class="bi bi-play-circle"></i> Generate
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (loadError()) {
+    <div class="summary-section">
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-icon">⚠️</div>
+          <div class="summary-content">
+            <div class="summary-label">Backend Status</div>
+            <div class="summary-value">Unavailable</div>
+            <div class="summary-sub">{{ loadError() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label for="stock-report-start">📅 Date Range:</label>
+      <input
+        id="stock-report-start"
+        type="date"
+        [ngModel]="startDate()"
+        (ngModelChange)="startDate.set($event)"
+      />
+      <span>to</span>
+      <input
+        id="stock-report-end"
+        type="date"
+        [ngModel]="endDate()"
+        (ngModelChange)="endDate.set($event)"
+      />
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-warehouse">📍 Warehouse:</label>
+      <select
+        id="stock-report-warehouse"
+        [ngModel]="warehouseFilter()"
+        (ngModelChange)="warehouseFilter.set($event)"
+      >
+        @for (wh of warehouseOptions(); track wh) {
+          <option [value]="wh">{{ wh }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-category">🏷️ Category:</label>
+      <select
+        id="stock-report-category"
+        [ngModel]="categoryFilter()"
+        (ngModelChange)="categoryFilter.set($event)"
+      >
+        @for (cat of categoryOptions(); track cat) {
+          <option [value]="cat">{{ cat }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-status">🔧 Status:</label>
+      <select
+        id="stock-report-status"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="statusFilter.set($event)"
+      >
+        @for (st of statuses; track st) {
+          <option [value]="st">{{ st }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-type">📊 Report Type:</label>
+      <select
+        id="stock-report-type"
+        [ngModel]="reportType()"
+        (ngModelChange)="reportType.set($event)"
+      >
+        @for (rt of reportTypes; track rt) {
+          <option [value]="rt">{{ rt }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-format">📁 Format:</label>
+      <select id="stock-report-format" [ngModel]="format()" (ngModelChange)="format.set($event)">
+        @for (fmt of formats; track fmt) {
+          <option [value]="fmt">{{ fmt }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="stock-report-zero">🔄 Include Zero Stock:</label>
+      <select
+        id="stock-report-zero"
+        [ngModel]="includeZeroStock()"
+        (ngModelChange)="includeZeroStock.set($event)"
+      >
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="summary-section">
+    <h2>📊 STOCK SUMMARY CARDS</h2>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-icon">📦</div>
+        <div class="summary-content">
+          <div class="summary-label">Total Items</div>
+          <div class="summary-value">{{ totalItems() }}</div>
+          <div class="summary-sub">Filtered live valuation rows</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">💰</div>
+        <div class="summary-content">
+          <div class="summary-label">Total Value</div>
+          <div class="summary-value">{{ formatValue(totalValue()) }}</div>
+          <div class="summary-sub">Current backend valuation</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">📈</div>
+        <div class="summary-content">
+          <div class="summary-label">Total Units</div>
+          <div class="summary-value">{{ totalUnits() }}</div>
+          <div class="summary-sub">Current quantity on hand</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">🔄</div>
+        <div class="summary-content">
+          <div class="summary-label">Turnover Rate</div>
+          <div class="summary-value">{{ turnoverRate() }}</div>
+          <div class="summary-sub">From live movement totals</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">⭐</div>
+        <div class="summary-content">
+          <div class="summary-label">Avg Stock Level</div>
+          <div class="summary-value">{{ avgStockLevel() }}</div>
+          <div class="summary-sub">Average units per item</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="section-header">
+      <h3>📈 INVENTORY ACTIVITY TREND</h3>
+    </div>
+    <div class="chart-placeholder">
+      <div class="chart-legend">
+        <span class="legend-item"><span class="dot blue"></span> Total Movement</span>
+      </div>
+      @if (trendBars().length > 0) {
+        <div class="chart-bars">
+          @for (bar of trendBars(); track bar.label) {
+            <div class="bar-group">
+              <div class="bar main" [style.height.px]="bar.height"></div>
+              <div class="bar-label">{{ bar.label }}</div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p>No activity trend data was returned for the selected range.</p>
+      }
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="section-header">
+      <h3>📋 DETAILED STOCK REPORT TABLE</h3>
+    </div>
+    <div class="table-container">
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Warehouse</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td>{{ item.sku }}</td>
+              <td>{{ item.name }}</td>
+              <td>{{ item.category }}</td>
+              <td>{{ item.warehouse }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ formatValue(item.unitPrice) }}</td>
+              <td>{{ formatValue(item.total) }}</td>
+              <td>
+                <span class="status-icon">{{ getStatusIcon(item.status) }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination-bar">
+      <div class="pagination-info">Showing {{ filteredItems().length }} live report items</div>
+    </div>
+  </div>
+
+  <div class="category-section">
+    <div class="section-header">
+      <h3>📊 STOCK BY CATEGORY</h3>
+    </div>
+    <div class="category-list">
+      @for (cat of categoryBreakdown(); track cat.name) {
+        <div class="category-item">
+          <div class="category-info">
+            <span class="category-name">{{ cat.name }}</span>
+            <span class="category-stats">{{ cat.units }} units</span>
+            <span class="category-value">{{ formatValue(cat.value) }}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="cat.percentage"></div>
+            <span class="progress-label">{{ cat.percentage }}%</span>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="top-items-section">
+    <div class="section-header">
+      <h3>📈 TOP ITEMS BY STOCK VALUE</h3>
+    </div>
+    <div class="top-items-list">
+      @for (item of topItemsByValue(); track item.name) {
+        <div class="top-item">
+          <div class="item-info">
+            <span class="item-rank"
+              >{{ topItemsByValue().indexOf(item) + 1 }}. {{ item.name }}</span
+            >
+            <span class="item-value">{{ formatValue(item.value) }}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="item.percentage"></div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="turnover-section">
+    <div class="section-header">
+      <h3>📊 MOVEMENT RATE BY CATEGORY</h3>
+    </div>
+    <div class="turnover-list">
+      @for (cat of turnoverByCategory(); track cat.name) {
+        <div class="turnover-item">
+          <div class="turnover-info">
+            <span class="turnover-name">{{ cat.name }}</span>
+            <span class="turnover-rate">{{ cat.rate }}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="cat.percentage"></div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="export-section">
+    <h3>⚡ EXPORT OPTIONS</h3>
+    <div class="export-buttons">
+      <button class="btn btn-secondary" (click)="exportToExcel()">
+        <i class="bi bi-file-earmark-excel"></i> Export to Excel
+      </button>
+      <button class="btn btn-secondary" (click)="exportToPDF()">
+        <i class="bi bi-file-earmark-pdf"></i> Export to PDF
+      </button>
+      <button class="btn btn-secondary" (click)="emailReport()">
+        <i class="bi bi-envelope"></i> Email Report
+      </button>
+      <button class="btn btn-secondary" (click)="printReport()">
+        <i class="bi bi-printer"></i> Print Report
+      </button>
+      <button class="btn btn-secondary" (click)="scheduleReport()">
+        <i class="bi bi-calendar-check"></i> Schedule Report
+      </button>
+    </div>
+  </div>
+</div>
+
+@if (showScheduleModal()) {
+  <div class="modal-overlay" (click)="closeScheduleModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Schedule Stock Report</h3>
+        <button class="btn-close" (click)="closeScheduleModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label for="schedule-frequency">Frequency</label>
+          <select
+            id="schedule-frequency"
+            [ngModel]="scheduleFrequency()"
+            (ngModelChange)="scheduleFrequency.set($event)"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="schedule-email">Email Recipient</label>
+          <input
+            id="schedule-email"
+            type="email"
+            [ngModel]="scheduleEmail()"
+            (ngModelChange)="scheduleEmail.set($event)"
+            placeholder="email@example.com"
+          />
+        </div>
+        <div class="form-field">
+          <label for="schedule-date">Start Date</label>
+          <input
+            id="schedule-date"
+            type="date"
+            [ngModel]="scheduleDate()"
+            (ngModelChange)="scheduleDate.set($event)"
+          />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeScheduleModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="saveSchedule()">Save Schedule</button>
+      </div>
+    </div>
+  </div>
+}

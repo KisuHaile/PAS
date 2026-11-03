@@ -1,0 +1,390 @@
+<div class="warehouse-view">
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Warehouse View</h1>
+      <p>Monitor and manage warehouse shelf inventory, occupancy, and layout</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="action-btn primary" (click)="openWarehouseDetailsModal()">
+        <i class="bi bi-building"></i>
+        Warehouse Details
+      </button>
+    </div>
+  </header>
+
+  <!-- Warehouse Selector -->
+  <section class="warehouse-selector">
+    <div class="selector-left">
+      <label class="selector-label"><i class="bi bi-geo-alt"></i> Warehouse</label>
+      <select class="filter-select" [ngModel]="selectedWarehouse()" (ngModelChange)="onWarehouseChange($event)">
+        @for (wh of warehouses; track wh) {
+          <option [value]="wh">{{ wh }}</option>
+        }
+      </select>
+    </div>
+    <div class="selector-right">
+      <div class="view-toggles">
+        <button type="button" class="toggle-btn" [class.active]="viewMode() === 'grid'" (click)="setViewMode('grid')">
+          <i class="bi bi-table"></i> Grid
+        </button>
+        <button type="button" class="toggle-btn" [class.active]="viewMode() === 'map'" (click)="setViewMode('map')">
+          <i class="bi bi-map"></i> Map
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary Cards -->
+  <section class="summary-section">
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-icon-wrap icon-blue">
+          <i class="bi bi-box-seam"></i>
+        </div>
+        <div class="summary-label">Total Items</div>
+        <div class="summary-value">{{ totalItems().toLocaleString() }}</div>
+        <div class="summary-sub">Across all shelves</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon-wrap icon-purple">
+          <i class="bi bi-currency-dollar"></i>
+        </div>
+        <div class="summary-label">Total Value</div>
+        <div class="summary-value">${{ totalValue().toLocaleString() }}</div>
+        <div class="summary-sub">Inventory value</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon-wrap icon-teal">
+          <i class="bi bi-layers"></i>
+        </div>
+        <div class="summary-label">Total Shelves</div>
+        <div class="summary-value">{{ totalShelves() }}</div>
+        <div class="summary-sub">Active shelves</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon-wrap icon-green">
+          <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <div class="summary-label">Occupancy Rate</div>
+        <div class="summary-value">{{ occupancyRate() }}%</div>
+        <div class="summary-sub">Average occupancy</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon-wrap icon-orange">
+          <i class="bi bi-pie-chart"></i>
+        </div>
+        <div class="summary-label">Utilization Rate</div>
+        <div class="summary-value">{{ utilizationRate() }}%</div>
+        <div class="summary-sub">Shelves &ge; 60% full</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Warehouse Map View -->
+  @if (viewMode() === 'map') {
+    <section class="map-section">
+      <div class="section-header">
+        <h3><i class="bi bi-map"></i> Warehouse Map</h3>
+        <span class="section-badge">{{ selectedWarehouse() }}</span>
+      </div>
+      <div class="warehouse-map">
+        <div class="map-header">{{ selectedWarehouse() }} &mdash; Floor Layout</div>
+        @for (aisle of aisles(); track aisle) {
+          <div class="aisle-section">
+            <div class="aisle-label">Aisle {{ aisle }}</div>
+            <div class="rack-row">
+              @for (shelf of getShelvesByAisle(aisle); track shelf.aisle + shelf.rack) {
+                <div
+                  class="rack-box"
+                  [class.rack-high]="shelf.occupancy >= 70"
+                  [class.rack-mid]="shelf.occupancy >= 30 && shelf.occupancy < 70"
+                  [class.rack-low]="shelf.occupancy < 30"
+                >
+                  <div class="rack-top">
+                    <span class="rack-code">{{ shelf.rack }}</span>
+                    <span class="rack-status">{{ shelf.status }}</span>
+                  </div>
+                  <div class="rack-occupancy-bar">
+                    <div class="rack-occupancy-fill" [style.width.%]="shelf.occupancy"></div>
+                  </div>
+                  <div class="rack-info">
+                    <span class="rack-items">{{ shelf.items }} items</span>
+                    <span class="rack-percent">{{ shelf.occupancy }}%</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div class="map-legend">
+        <span class="legend-item"><span class="legend-dot dot-green"></span> High (&gt;70%)</span>
+        <span class="legend-item"><span class="legend-dot dot-yellow"></span> Medium (30&ndash;70%)</span>
+        <span class="legend-item"><span class="legend-dot dot-red"></span> Low (&lt;30%)</span>
+      </div>
+    </section>
+  }
+
+  <!-- Shelf List Table -->
+  <section class="table-section">
+    <div class="section-header">
+      <h3><i class="bi bi-list-columns"></i> Shelf Inventory</h3>
+      <span class="section-count">{{ filteredShelves().length }} shelves</span>
+    </div>
+    <div class="table-container">
+      <table class="shelf-table">
+        <thead>
+          <tr>
+            <th>Aisle</th>
+            <th>Rack</th>
+            <th>Items</th>
+            <th>Value</th>
+            <th>Occupancy</th>
+            <th>Status</th>
+            <th>Last Updated</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (shelf of filteredShelves(); track shelf.aisle + shelf.rack) {
+            <tr>
+              <td><span class="aisle-badge">{{ shelf.aisle }}</span></td>
+              <td class="rack-cell">{{ shelf.rack }}</td>
+              <td class="num-cell">{{ shelf.items.toLocaleString() }}</td>
+              <td class="num-cell">${{ shelf.value.toLocaleString() }}</td>
+              <td>
+                <div class="occupancy-cell">
+                  <div class="occupancy-bar-wrap">
+                    <div
+                      class="occupancy-fill"
+                      [style.width.%]="shelf.occupancy"
+                      [class.fill-green]="shelf.occupancy >= 70"
+                      [class.fill-yellow]="shelf.occupancy >= 30 && shelf.occupancy < 70"
+                      [class.fill-red]="shelf.occupancy < 30"
+                    ></div>
+                  </div>
+                  <span
+                    class="occupancy-text"
+                    [class.text-green]="shelf.occupancy >= 70"
+                    [class.text-yellow]="shelf.occupancy >= 30 && shelf.occupancy < 70"
+                    [class.text-red]="shelf.occupancy < 30"
+                  >{{ shelf.occupancy }}%</span>
+                </div>
+              </td>
+              <td>
+                <span
+                  class="status-badge"
+                  [class.status-green]="shelf.status === '\uD83D\uDFE2'"
+                  [class.status-yellow]="shelf.status === '\uD83D\uDFE1'"
+                  [class.status-red]="shelf.status === '\uD83D\uDD34'"
+                >
+                  {{ shelf.status === '\uD83D\uDFE2' ? 'Active' : shelf.status === '\uD83D\uDFE1' ? 'Warning' : 'Critical' }}
+                </span>
+              </td>
+              <td class="date-cell">{{ shelf.lastUpdated }}</td>
+              <td>
+                <div class="actions-cell">
+                  <button type="button" class="icon-btn" (click)="viewShelf(shelf)" title="View">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button type="button" class="icon-btn" (click)="editShelf(shelf)" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="icon-btn" (click)="viewItems(shelf)" title="Items">
+                    <i class="bi bi-box"></i>
+                  </button>
+                  <button type="button" class="icon-btn" (click)="printShelf(shelf)" title="Print">
+                    <i class="bi bi-printer"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p>No shelves found</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span class="footer-info">Showing all {{ filteredShelves().length }} shelves</span>
+      <div class="pagination">
+        <button type="button" class="page-btn" disabled><i class="bi bi-chevron-left"></i></button>
+        <button type="button" class="page-btn active">1</button>
+        <button type="button" class="page-btn"><i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Statistics Section -->
+  <section class="chart-section">
+    <div class="section-header">
+      <h3><i class="bi bi-bar-chart"></i> Aisle Statistics</h3>
+      <span class="section-badge">Occupancy &amp; Items by Aisle</span>
+    </div>
+    <div class="chart-wrapper">
+      <div echarts [options]="chartOption()" class="echart-container"></div>
+    </div>
+  </section>
+
+  <!-- Quick Actions -->
+  <section class="quick-actions-section">
+    <div class="section-header">
+      <h3><i class="bi bi-lightning"></i> Quick Actions</h3>
+    </div>
+    <div class="quick-actions">
+      <button type="button" class="quick-action-btn" (click)="addShelf()">
+        <span class="qa-icon"><i class="bi bi-plus-lg"></i></span>
+        <span class="qa-label">Add Shelf</span>
+      </button>
+      <button type="button" class="quick-action-btn" (click)="rearrangeShelves()">
+        <span class="qa-icon"><i class="bi bi-arrow-repeat"></i></span>
+        <span class="qa-label">Rearrange</span>
+      </button>
+      <button type="button" class="quick-action-btn" (click)="exportData()">
+        <span class="qa-icon"><i class="bi bi-download"></i></span>
+        <span class="qa-label">Export Data</span>
+      </button>
+      <button type="button" class="quick-action-btn" (click)="printLayout()">
+        <span class="qa-icon"><i class="bi bi-printer"></i></span>
+        <span class="qa-label">Print Layout</span>
+      </button>
+      <button type="button" class="quick-action-btn" (click)="scanQRCode()">
+        <span class="qa-icon"><i class="bi bi-qr-code"></i></span>
+        <span class="qa-label">Scan QR</span>
+      </button>
+    </div>
+  </section>
+</div>
+
+<!-- Warehouse Details Modal -->
+@if (showWarehouseDetailsModal()) {
+  <div class="modal-overlay" (click)="closeWarehouseDetailsModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-building"></i> {{ selectedWarehouse() }} Details</h3>
+        <button type="button" class="close-btn" (click)="closeWarehouseDetailsModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <h3><i class="bi bi-info-circle"></i> General Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Name</span>
+              <span class="info-value">Warehouse A</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Code</span>
+              <span class="info-value">WH-01</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Type</span>
+              <span class="info-value">Main Warehouse</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status</span>
+              <span class="info-value"><span class="status-badge status-green">&#9679; Active</span></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Manager</span>
+              <span class="info-value">John Doe</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Phone</span>
+              <span class="info-value">+251-911-234567</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email</span>
+              <span class="info-value">wh-a@afrocom.com</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Created</span>
+              <span class="info-value">Jan 15, 2020</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-section">
+          <h3><i class="bi bi-geo-alt"></i> Address</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Street</span>
+              <span class="info-value">Bole Road, Near Bole Medhanialem Church</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">City</span>
+              <span class="info-value">Addis Ababa, Ethiopia</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">GPS</span>
+              <span class="info-value">9.0320&deg; N, 38.7469&deg; E</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-section">
+          <h3><i class="bi bi-pie-chart"></i> Capacity &amp; Utilization</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Total Shelves</span>
+              <span class="info-value">{{ totalShelves() }} shelves</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Occupied Shelves</span>
+              <span class="info-value">{{ shelves().filter(s => s.occupancy > 0).length }} shelves ({{ occupancyRate() }}%)</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total Capacity</span>
+              <span class="info-value">10,000 units</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Current Stock</span>
+              <span class="info-value">{{ totalItems().toLocaleString() }} units ({{ Math.round(totalItems() / 10000 * 100) }}%)</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Available Space</span>
+              <span class="info-value">{{ (10000 - totalItems()).toLocaleString() }} units ({{ Math.round((10000 - totalItems()) / 10000 * 100) }}%)</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-section">
+          <h3><i class="bi bi-graph-up"></i> Performance Metrics</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Inventory Turnover</span>
+              <span class="info-value">4.2x per year</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Order Accuracy</span>
+              <span class="info-value">99.2%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Stockout Rate</span>
+              <span class="info-value">2.1%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Receiving Accuracy</span>
+              <span class="info-value">98.5%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Damage Rate</span>
+              <span class="info-value">0.8%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Audit Score</span>
+              <span class="info-value">94%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="closeWarehouseDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}

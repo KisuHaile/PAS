@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/PAS.API/">
+    <Project Path="PAS.API/PAS.API.csproj" />
+  </Folder>
+  <Folder Name="/PAS.Application/">
+    <Project Path="PAS.Application/PAS.Application.csproj" />
+  </Folder>
+  <Folder Name="/PAS.Domain/">
+    <Project Path="PAS.Domain/PAS.Domain.csproj" />
+  </Folder>
+  <Folder Name="/PAS.Persistence/">
+    <Project Path="PAS.Persistence/PAS.Persistence.csproj" />
+  </Folder>
+</Solution>

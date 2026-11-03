@@ -1,0 +1,476 @@
+﻿<div class="properties-container">
+  <div class="page-header gradient-header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+      </svg>
+    </div>
+    <div class="header-content">
+      <h1>All Properties</h1>
+      <p class="subtitle">View and manage all organizational assets</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="addNewProperty()">
+        <i class="bi bi-plus-lg"></i> Add Property
+      </button>
+    </div>
+  </div>
+
+  @if (notification(); as notif) {
+    <div class="notification-banner" [class.success]="notif.type === 'success'" [class.error]="notif.type === 'error'" [class.info]="notif.type === 'info'">
+      <i class="bi" [class.bi-check-circle-fill]="notif.type === 'success'" [class.bi-exclamation-circle-fill]="notif.type === 'error'" [class.bi-info-circle-fill]="notif.type === 'info'"></i>
+      <span>{{ notif.message }}</span>
+      <button class="notif-close" (click)="notification.set(null)">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+  }
+
+  <div class="filter-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" (input)="onSearchChange($event)" [value]="searchTerm()" placeholder="Search by Tag #, Name...">
+    </div>
+    <div class="filter-group">
+      <label>Type</label>
+      <select [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
+        @for (type of propertyTypes; track type) {
+          <option [value]="type">{{ type }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Location</label>
+      <select [(ngModel)]="locationFilter" (ngModelChange)="onFilterChange()">
+        @for (loc of locations; track loc) {
+          <option [value]="loc">{{ loc }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Purchase</label>
+      <select [(ngModel)]="purchaseFilter" (ngModelChange)="onFilterChange()">
+        @for (date of purchaseDates; track date) {
+          <option [value]="date">{{ date }}</option>
+        }
+      </select>
+    </div>
+    <button class="btn btn-sm btn-secondary" (click)="resetFilters()">Reset</button>
+    <button class="btn btn-sm btn-secondary" (click)="saveFilter()">Save</button>
+  </div>
+
+  <div class="stat-cards">
+    @for (card of statCards(); track card.label) {
+      <div class="stat-card">
+        <div class="stat-icon" [style.background]="card.color + '15'" [style.color]="card.color">
+          <i class="bi" [class.bi-box]="card.icon === 'box'" [class.bi-check-circle]="card.icon === 'check-circle'" [class.bi-tools]="card.icon === 'tools'" [class.bi-archive]="card.icon === 'archive'" [class.bi-currency-dollar]="card.icon === 'currency-dollar'" [class.bi-graph-up]="card.icon === 'graph-up'"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">{{ card.label }}</span>
+          <span class="stat-value">{{ card.value }}</span>
+          <div class="micro-bar">
+            <div class="micro-fill" [style.width.%]="card.pct" [style.background]="card.color"></div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-card-title">Type Distribution</span>
+        <span class="chart-card-badge">{{ typeBars().length }} types</span>
+      </div>
+      <div class="chart-card-body">
+        <div class="donut-section">
+          <svg viewBox="0 0 130 130" class="donut-svg">
+            @for (seg of donutSegments(); track seg.label) {
+              <circle r="50" cx="65" cy="65" fill="transparent" [attr.stroke]="seg.color" stroke-width="22" [attr.stroke-dasharray]="seg.dashArray" [attr.stroke-dashoffset]="seg.dashOffset" transform="rotate(-90 65 65)" class="donut-segment" />
+            }
+            <text x="65" y="55" text-anchor="middle" class="donut-value">{{ filteredProperties().length }}</text>
+            <text x="65" y="72" text-anchor="middle" class="donut-label">Total</text>
+          </svg>
+          <div class="donut-legend">
+            @for (seg of donutSegments(); track seg.label) {
+              <div class="legend-item">
+                <span class="legend-dot" [style.background]="seg.color"></span>
+                <span class="legend-label">{{ seg.label }}</span>
+                <span class="legend-value">{{ seg.value }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-card-title">By Type</span>
+        <span class="chart-card-badge">{{ typeBars().length }} categories</span>
+      </div>
+      <div class="chart-card-body">
+        @for (item of typeBars(); track item.name) {
+          <div class="bar-item">
+            <div class="bar-label">
+              <span>{{ item.name }}</span>
+              <span>{{ item.value }}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" [style.width.%]="item.pct" [style.background]="item.color"></div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-card-title">By Location</span>
+        <span class="chart-card-badge">{{ locationBars().length }} locations</span>
+      </div>
+      <div class="chart-card-body">
+        @for (item of locationBars(); track item.name) {
+          <div class="bar-item">
+            <div class="bar-label">
+              <span>{{ item.name }}</span>
+              <span>{{ item.value }}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" [style.width.%]="item.pct" [style.background]="item.color"></div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-toolbar">
+      <span class="toolbar-title">All Properties ({{ filteredProperties().length }})</span>
+      <div class="toolbar-actions">
+        <button class="btn btn-sm btn-secondary" (click)="exportProperties()">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <button class="btn btn-sm btn-secondary" (click)="printProperties()">
+          <i class="bi bi-printer"></i> Print
+        </button>
+        <div class="bulk-actions-wrapper">
+          <button class="btn btn-sm btn-secondary" (click)="showBulkActions()">
+            Bulk <i class="bi bi-chevron-down"></i>
+          </button>
+          @if (showBulkActionsDropdown()) {
+            <div class="bulk-dropdown">
+              <button class="dropdown-item" (click)="bulkDelete()">
+                <i class="bi bi-trash"></i> Delete Selected
+              </button>
+              <button class="dropdown-item" (click)="bulkTransfer()">
+                <i class="bi bi-arrow-repeat"></i> Transfer
+              </button>
+              <button class="dropdown-item" (click)="bulkExport()">
+                <i class="bi bi-download"></i> Export
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tag #</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Location</th>
+            <th>Value</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (prop of paginatedProperties(); track prop.id) {
+            <tr>
+              <td><span class="tag-badge">{{ prop.tagNumber }}</span></td>
+              <td class="name-cell">{{ prop.name }}</td>
+              <td>{{ prop.type }}</td>
+              <td>{{ prop.location }}</td>
+              <td class="value-cell">ETB {{ prop.value.toLocaleString() }}</td>
+              <td>
+                <span class="status-badge" [class.active]="prop.status === 'Active'" [class.maintenance]="prop.status === 'Maintenance'" [class.disposed]="prop.status === 'Disposed'">
+                  <i class="bi" [class.bi-check-circle-fill]="prop.status === 'Active'" [class.bi-exclamation-triangle-fill]="prop.status === 'Maintenance'" [class.bi-archive-fill]="prop.status === 'Disposed'"></i>
+                  {{ prop.status }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button class="action-btn" (click)="openDetailsModal(prop)" title="View Details">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="action-btn" (click)="navigateToEdit(prop)" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="action-btn" (click)="requestDelete(prop)" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty-row">No properties match your filters</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination-bar">
+      <span class="pagination-info">
+        Showing {{ (currentPage() - 1) * pageSize + 1 }}-{{ Math.min(currentPage() * pageSize, filteredProperties().length) }} of {{ filteredProperties().length }}
+      </span>
+      <div class="pagination-controls">
+        <button class="page-btn" (click)="prevPage()" [disabled]="currentPage() <= 1">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        @for (p of getPageRange(); track p) {
+          <button class="page-btn" [class.active]="p === currentPage()" (click)="goToPage(p)">{{ p }}</button>
+        }
+        <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() >= totalPages()">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (showModal() && selectedProperty(); as prop) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content wide-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3>{{ prop.tagNumber }} - {{ prop.name }}</h3>
+          <span class="status-badge" [class.active]="prop.status === 'Active'" [class.maintenance]="prop.status === 'Maintenance'" [class.disposed]="prop.status === 'Disposed'">
+            <i class="bi" [class.bi-check-circle-fill]="prop.status === 'Active'" [class.bi-exclamation-triangle-fill]="prop.status === 'Maintenance'" [class.bi-archive-fill]="prop.status === 'Disposed'"></i>
+            {{ prop.status }}
+          </span>
+        </div>
+        <button class="btn-close" (click)="closeModal()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-grid-2col">
+          <div class="detail-section">
+            <h4 class="section-title">
+              <i class="bi bi-info-circle"></i> Basic Information
+            </h4>
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Tag Number</span>
+                <span class="detail-value">{{ prop.tagNumber }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Name</span>
+                <span class="detail-value">{{ prop.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Serial Number</span>
+                <span class="detail-value">{{ getSerial(prop) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ prop.type }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Location</span>
+                <span class="detail-value">{{ prop.location }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Assigned To</span>
+                <span class="detail-value">{{ getAssignedTo(prop) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4 class="section-title">
+              <i class="bi bi-currency-dollar"></i> Financial Details
+            </h4>
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Unit Price</span>
+                <span class="detail-value">ETB {{ prop.value.toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Quantity</span>
+                <span class="detail-value">1</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Total Value</span>
+                <span class="detail-value">ETB {{ prop.value.toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Supplier</span>
+                <span class="detail-value">{{ getSupplier(prop) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">PO Number</span>
+                <span class="detail-value">{{ prop.poNumber || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Purchase Date</span>
+                <span class="detail-value">{{ prop.purchaseDate ? (prop.purchaseDate | date:'mediumDate') : 'N/A' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-grid-2col">
+          <div class="detail-section">
+            <h4 class="section-title">
+              <i class="bi bi-shield-check"></i> Warranty
+            </h4>
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Warranty End</span>
+                <span class="detail-value">{{ prop.warrantyEnd ? (prop.warrantyEnd | date:'mediumDate') : 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Warranty Status</span>
+                <span class="detail-value">
+                  <span class="status-badge" [class.active]="prop.warrantyEnd && prop.warrantyEnd > '2026-06-01'" [class.disposed]="!prop.warrantyEnd || prop.warrantyEnd <= '2026-06-01'">
+                    {{ prop.warrantyEnd && prop.warrantyEnd > '2026-06-01' ? 'Active' : 'Expired' }}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4 class="section-title">
+              <i class="bi bi-qr-code"></i> QR Code
+            </h4>
+            <div class="qr-placeholder">
+              <i class="bi bi-qr-code"></i>
+              <span>{{ prop.tagNumber }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="bi bi-paperclip"></i> Attachments
+          </h4>
+          <div class="attachments-list">
+            <div class="attachment-item">
+              <i class="bi bi-file-pdf"></i>
+              <span>Invoice_{{ prop.tagNumber }}.pdf</span>
+              <div class="attachment-actions">
+                <button class="btn btn-sm btn-secondary" (click)="viewAttachment('Invoice_' + prop.tagNumber + '.pdf')">View</button>
+                <button class="btn btn-sm btn-secondary" (click)="downloadAttachment('Invoice_' + prop.tagNumber + '.pdf')">Download</button>
+              </div>
+            </div>
+            <div class="attachment-item">
+              <i class="bi bi-file-image"></i>
+              <span>{{ prop.name }}_Photo.jpg</span>
+              <div class="attachment-actions">
+                <button class="btn btn-sm btn-secondary" (click)="viewAttachment(prop.name + '_Photo.jpg')">View</button>
+                <button class="btn btn-sm btn-secondary" (click)="downloadAttachment(prop.name + '_Photo.jpg')">Download</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-secondary" (click)="addAttachment()">
+            <i class="bi bi-plus"></i> Add File
+          </button>
+        </div>
+
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="bi bi-clock-history"></i> Recent History
+          </h4>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ prop.purchaseDate ? (prop.purchaseDate | date:'mediumDate') : 'N/A' }}</td>
+                <td><span class="action-tag created">Created</span></td>
+                <td>{{ getAssignedTo(prop) }}</td>
+                <td>Property added to inventory</td>
+              </tr>
+              <tr>
+                <td>{{ prop.warrantyEnd ? (prop.warrantyEnd | date:'mediumDate') : 'N/A' }}</td>
+                <td><span class="action-tag updated">Warranty</span></td>
+                <td>Admin</td>
+                <td>Warranty registered</td>
+              </tr>
+            </tbody>
+          </table>
+          <button class="btn btn-sm btn-secondary" (click)="viewFullHistory()">
+            View Full History <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="navigateToEdit(prop)">
+          <i class="bi bi-pencil"></i> Edit
+        </button>
+        <button class="btn btn-secondary" (click)="transferProperty(prop)">
+          <i class="bi bi-arrow-repeat"></i> Transfer
+        </button>
+        <button class="btn btn-secondary" (click)="printLabel(prop)">
+          <i class="bi bi-tag"></i> Label
+        </button>
+        <button class="btn btn-secondary" (click)="viewQR(prop)">
+          <i class="bi bi-qr-code"></i> QR
+        </button>
+        <button class="btn btn-danger" (click)="disposeProperty(prop)">
+          <i class="bi bi-archive"></i> Dispose
+        </button>
+        <button class="btn btn-secondary" (click)="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showConfirmDelete() && propertyToDelete(); as prop) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal-content confirm-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="btn-close" (click)="cancelDelete()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body confirm-body">
+        <div class="confirm-icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <p>Are you sure you want to delete <strong>{{ prop.tagNumber }} - {{ prop.name }}</strong>?</p>
+        <p class="confirm-warning">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+        <button class="btn btn-danger" (click)="confirmDelete()">
+          <i class="bi bi-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}

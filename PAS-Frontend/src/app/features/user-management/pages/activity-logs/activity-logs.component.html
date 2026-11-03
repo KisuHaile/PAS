@@ -1,0 +1,209 @@
+<section class="logs-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="bi bi-clock-history"></i>
+      </div>
+      <div class="header-text">
+        <h1>Activity Logs</h1>
+        <p>Track and monitor all user activities and system events across the platform</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="count-badge">{{ totalLogs() }} entries</span>
+      <button type="button" class="action-btn secondary" (click)="showExportDropdown.set(!showExportDropdown())">
+        <i class="bi bi-download"></i> Export
+        <i class="bi bi-chevron-down"></i>
+      </button>
+      @if (showExportDropdown()) {
+        <div class="dropdown-menu">
+          <button type="button" (click)="exportLogs('CSV')"><i class="bi bi-file-earmark-csv"></i> CSV</button>
+          <button type="button" (click)="exportLogs('Excel')"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+          <button type="button" (click)="exportLogs('JSON')"><i class="bi bi-file-earmark-code"></i> JSON</button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-journal-text"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Entries</span>
+          <span class="stat-value">{{ summaryStats().total }}</span>
+          <span class="stat-trend">All system events</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Successful</span>
+          <span class="stat-value">{{ summaryStats().success }}</span>
+          <span class="stat-trend positive">{{ (summaryStats().success / Math.max(summaryStats().total, 1) * 100).toFixed(0) }}% success rate</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Failures</span>
+          <span class="stat-value">{{ summaryStats().failures }}</span>
+          <span class="stat-trend negative">{{ (summaryStats().failures / Math.max(summaryStats().total, 1) * 100).toFixed(0) }}% failure rate</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-people"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Active Users</span>
+          <span class="stat-value">{{ summaryStats().uniqueUsers }}</span>
+          <span class="stat-trend">Unique actors</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div class="filter-field"><i class="bi bi-search"></i><input type="text" placeholder="Search by user, entity, details..." [value]="searchQuery()" (input)="onSearch($event)"></div>
+        <div class="filter-field"><i class="bi bi-person"></i><select [value]="userFilter()" (change)="onUserFilter($event)"><option value="All">All Users</option>@for (u of uniqueUsers(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
+        <div class="filter-field"><i class="bi bi-lightning"></i><select [value]="actionTypeFilter()" (change)="onActionTypeFilter($event)"><option value="All">All Actions</option><option>Create</option><option>Update</option><option>Delete</option><option>View</option><option>Login</option><option>Export</option><option>Import</option><option>Approve</option><option>Reject</option><option>Alert</option><option>Error</option></select></div>
+        <div class="filter-field"><i class="bi bi-box"></i><select [value]="entityTypeFilter()" (change)="onEntityTypeFilter($event)"><option value="All">All Entities</option>@for (e of uniqueEntityTypes(); track e) { <option [value]="e">{{ e }}</option> }</select></div>
+        <div class="filter-field"><i class="bi bi-shield-check"></i><select [value]="statusFilter()" (change)="onStatusFilter($event)"><option value="All">All Status</option><option>Success</option><option>Failure</option><option>Warning</option></select></div>
+      </div>
+      <button type="button" class="btn-filter" (click)="resetFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3><i class="bi bi-table"></i> Activity Logs</h3>
+        <span class="result-count">{{ filteredLogs().length }} result(s)</span>
+      </div>
+      <div class="panel-body no-padding">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Entity Type</th>
+              <th>Entity ID</th>
+              <th>Details</th>
+              <th>IP Address</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of pagedLogs(); track log.id) {
+              <tr class="clickable" (click)="openDetailsModal(log)">
+                <td>
+                  <div class="time-cell">
+                    <span class="time-main">{{ formatDate(log.timestamp) }}</span>
+                    <span class="time-sub">{{ formatTimeAgo(log.timestamp) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="user-badge">
+                    <div class="user-avatar-sm">{{ log.user.split(' ').map(n => n[0]).join('').substring(0, 2) }}</div>
+                    <span>{{ log.user }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="action-badge" [class]="'action-' + getActionClass(log.actionType)">
+                    <i [class]="getActionIcon(log.actionType)"></i>
+                    {{ log.action }}
+                  </span>
+                </td>
+                <td><span class="entity-tag">{{ log.entityType }}</span></td>
+                <td class="mono">{{ log.entityId }}</td>
+                <td class="details-cell" title="{{ log.details }}">{{ log.details }}</td>
+                <td class="mono">{{ log.ipAddress }}</td>
+                <td>
+                  <span class="status-badge" [class.success]="log.status === 'Success'" [class.danger]="log.status === 'Failure'" [class.warning]="log.status === 'Warning'">
+                    <span class="status-dot"></span> {{ log.status }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="empty-state"><i class="bi bi-journal-text"></i> No activity logs found</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination-bar">
+      <div class="pagination-info">Showing {{ displayRange().start }}–{{ displayRange().end }} of {{ filteredLogs().length }}</div>
+      <div class="pagination-controls">
+        <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)"><i class="bi bi-chevron-left"></i></button>
+        @for (page of [].constructor(totalPages()); track $index) {
+          <button class="page-btn" [class.active]="currentPage() === $index + 1" (click)="goToPage($index + 1)">{{ $index + 1 }}</button>
+        }
+        <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="rows-per-page">
+        <select [value]="rowsPerPage()" (change)="onRowsPerPageChange($event)">
+          <option>10</option><option>15</option><option>25</option><option>50</option>
+        </select> per page
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- Detail Modal -->
+@if (showDetailsModal() && selectedLog(); as log) {
+  <div class="modal-overlay" (click)="closeDetailsModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="bi bi-journal-text"></i> Activity Details</h3>
+        <button type="button" class="modal-close" (click)="closeDetailsModal()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-section">
+          <h4>Basic Information</h4>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="label">Timestamp</span><span class="value">{{ formatTimestamp(log.timestamp) }}</span></div>
+            <div class="detail-item"><span class="label">User</span><span class="value">{{ log.user }}</span></div>
+            <div class="detail-item"><span class="label">IP Address</span><span class="value">{{ log.ipAddress }}</span></div>
+            <div class="detail-item"><span class="label">Session ID</span><span class="value mono">ses_{{ log.id }}_abc</span></div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Action Details</h4>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="label">Action</span><span class="value"><span class="action-badge" [class]="'action-' + getActionClass(log.actionType)"><i [class]="getActionIcon(log.actionType)"></i> {{ log.action }}</span></span></div>
+            <div class="detail-item"><span class="label">Action Type</span><span class="value">{{ log.actionType }}</span></div>
+            <div class="detail-item"><span class="label">Entity</span><span class="value">{{ log.entityType }}</span></div>
+            <div class="detail-item"><span class="label">Entity ID</span><span class="value mono">{{ log.entityId }}</span></div>
+            <div class="detail-item"><span class="label">Status</span><span class="value"><span class="status-badge" [class.success]="log.status === 'Success'" [class.danger]="log.status === 'Failure'" [class.warning]="log.status === 'Warning'"><span class="status-dot"></span> {{ log.status }}</span></span></div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Description</h4>
+          <p class="detail-description">{{ log.details }}</p>
+        </div>
+        @if (useMockData() && log.details) {
+          <div class="detail-section">
+            <h4>Changes Made</h4>
+            <div class="changes-table">
+              <div class="changes-header"><span>Field</span><span>Old Value</span><span>New Value</span></div>
+              <div class="changes-row"><span>Status</span><span>—</span><span>Updated</span></div>
+              <div class="changes-row"><span>Modified By</span><span>—</span><span>{{ log.user }}</span></div>
+              <div class="changes-row"><span>Timestamp</span><span>—</span><span>{{ formatTimestamp(log.timestamp) }}</span></div>
+            </div>
+          </div>
+        }
+        <div class="detail-section">
+          <h4>Request Information</h4>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="label">Method</span><span class="value">—</span></div>
+            <div class="detail-item"><span class="label">Endpoint</span><span class="value">—</span></div>
+            <div class="detail-item"><span class="label">User Agent</span><span class="value">—</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-btn secondary" (click)="copyDetails()"><i class="bi bi-clipboard"></i> Copy</button>
+        <button type="button" class="action-btn secondary" (click)="closeDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}

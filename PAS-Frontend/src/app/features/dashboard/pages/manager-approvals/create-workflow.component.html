@@ -1,0 +1,37 @@
+<div class="create-workflow-container">
+  <div class="page-header">
+    <h1>Create Workflow</h1>
+    <p class="subtitle">Create a new approval workflow</p>
+  </div>
+
+  <div class="form-card">
+    <form [formGroup]="workflowForm" (ngSubmit)="submit()">
+      <div class="form-field">
+        <label for="name">Workflow Name *</label>
+        <input id="name" type="text" formControlName="name" placeholder="Enter workflow name" />
+        @if (submitted() && workflowForm.get('name')?.errors?.['required']) {
+          <div class="error-message">Name is required</div>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="description">Description *</label>
+        <textarea id="description" formControlName="description" rows="3" placeholder="Describe the workflow"></textarea>
+        @if (submitted() && workflowForm.get('description')?.errors?.['required']) {
+          <div class="error-message">Description is required</div>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="loading()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="loading()">
+          @if (loading()) {
+            <span>Creating...</span>
+          } @else {
+            <span>Create Workflow</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
