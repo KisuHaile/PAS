@@ -1,5 +1,11 @@
 # PAS
 
+
+go to master branch if you want to see the role that you are going to do
+
+and after that you can go to your branch and push what you do in that
+
+
 PAS is a Property and Asset Management System built for managing inventory, properties, stock operations, requisitions, and user roles in a unified platform.
 
 This repository contains two main parts:
