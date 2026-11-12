@@ -22,6 +22,12 @@ namespace Domain.Storage
             LocationCode = code;
         }
 
+        public Warehouse(Guid id, string name, string code)
+            : this(name, code)
+        {
+            Id = id;
+        }
+
         // Navigation
         public ICollection<ShelfLocation> Shelves { get; private set; } = new List<ShelfLocation>();
 

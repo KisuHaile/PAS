@@ -24,5 +24,11 @@ namespace Domain.Catalog
             Description = description;
             ParentCategoryId = parentCategoryId;
         }
+
+        public Category(Guid id, string name, string description, Guid? parentCategoryId = null)
+            : this(name, description, parentCategoryId)
+        {
+            Id = id;
+        }
     }
 }

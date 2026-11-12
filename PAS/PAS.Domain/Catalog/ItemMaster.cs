@@ -45,5 +45,11 @@ namespace Domain.Catalog
             UnitPrice = unitPrice;
             Status = status;
         }
+
+        public ItemMaster(Guid id, string sku, string itemName, Guid categoryId, string uom, bool inspection, int minStock, decimal unitPrice = 0m, string status = "Active")
+            : this(sku, itemName, categoryId, uom, inspection, minStock, unitPrice, status)
+        {
+            Id = id;
+        }
     }
 }

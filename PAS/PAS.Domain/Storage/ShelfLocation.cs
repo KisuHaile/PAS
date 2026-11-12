@@ -31,12 +31,25 @@ namespace Domain.Storage
         {
         }
 
+        public ShelfLocation(string aisle, string rack, string shelf)
+        {
+            Aisle = aisle;
+            Rack = rack;
+            ShelfNumber = shelf;
+        }
+
         public ShelfLocation(Guid warehouseId, string aisle, string rack, string shelf)
         {
             WarehouseId = warehouseId;
             Aisle = aisle;
             Rack = rack;
             ShelfNumber = shelf;
+        }
+
+        public ShelfLocation(Guid id, Guid warehouseId, string aisle, string rack, string shelf)
+            : this(warehouseId, aisle, rack, shelf)
+        {
+            Id = id;
         }
     }
 }

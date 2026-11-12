@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
 using Persistence.Identity;
+using System.Threading.Tasks;
 
 namespace Persistence.Seed
 {
@@ -21,6 +22,7 @@ namespace Persistence.Seed
 
             await DefaultUserSeed.SeedAsync(userManager);
 
+            await BusinessDataSeed.SeedAsync(context);
         }
     }
 }
