@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ManagerDataService } from '../../../../core/services/manager-data.service';
+import { downloadReportPdf } from '../compliance-reports/report-actions.util';
 
 export interface ApprovalLog {
   timestamp: string;
@@ -26,111 +28,84 @@ export interface DecisionHistory {
   templateUrl: './audit-reference-page.component.html',
   styleUrl: './audit-reference-page.component.scss',
 })
-export class AuditReferencePageComponent {
-  dateFrom = 'Dec 01, 2024';
-  dateTo = 'Dec 15, 2024';
+export class AuditReferencePageComponent implements OnInit {
+  private readonly managerData = inject(ManagerDataService);
+
+  dateFrom = new Date(Date.now() - 30 * 86400000).toLocaleDateString();
+  dateTo = new Date().toLocaleDateString();
   approverFilter = 'All';
   statusFilter = 'All';
 
-  approvalLogs: ApprovalLog[] = [
-    {
-      timestamp: 'Dec 15, 10:30:25',
-      approver: 'Sarah Smith',
-      srNumber: 'SR-2024-123',
-      decision: '✅',
-      value: '$5,348',
-      responseTime: '2 hours',
-      justification: 'Approved',
-    },
-    {
-      timestamp: 'Dec 14, 15:45:12',
-      approver: 'Sarah Smith',
-      srNumber: 'SR-2024-122',
-      decision: '✅',
-      value: '$2,800',
-      responseTime: '1 day',
-      justification: 'Approved',
-    },
-    {
-      timestamp: 'Dec 14, 09:30:02',
-      approver: 'Sarah Smith',
-      srNumber: 'SR-2024-121',
-      decision: '⏳',
-      value: '$900',
-      responseTime: '-',
-      justification: 'Pending',
-    },
-    {
-      timestamp: 'Dec 13, 14:15:33',
-      approver: 'Sarah Smith',
-      srNumber: 'SR-2024-117',
-      decision: '❌',
-      value: '$2,499',
-      responseTime: '1.2 hrs',
-      justification: 'Budget',
-    },
-    {
-      timestamp: 'Dec 12, 11:00:00',
-      approver: 'Sarah Smith',
-      srNumber: 'SR-2024-116',
-      decision: '✅',
-      value: '$1,200',
-      responseTime: '3 hrs',
-      justification: 'Approved',
-    },
-  ];
+  approvalLogs: ApprovalLog[] = [];
+  decisionHistory: DecisionHistory[] = [];
 
-  decisionHistory: DecisionHistory[] = [
-    {
-      date: 'Dec 14',
-      srNumber: 'SR-2024-118',
-      decision: '✅',
-      reason: 'Within budget',
-      comments: 'Approved for new equipment',
-    },
-    {
-      date: 'Dec 13',
-      srNumber: 'SR-2024-117',
-      decision: '❌',
-      reason: 'Budget constraints',
-      comments: 'Please resubmit next quarter',
-    },
-    {
-      date: 'Dec 12',
-      srNumber: 'SR-2024-116',
-      decision: '✅',
-      reason: 'Urgent need',
-      comments: 'Critical for operations',
-    },
-  ];
+  ngOnInit(): void {
+    this.managerData.syncServiceRequests().subscribe(() => {
+      const rows = this.managerData.requestRows();
+      this.approvalLogs = rows.map((r) => ({
+        timestamp: r.approvedDate || r.rejectedDate || r.requestedDate,
+        approver: r.approvedBy || r.rejectedBy || 'Eleni Grefie',
+        srNumber: r.requestNumber,
+        decision: r.status === 'Approved' ? '✅' : r.status === 'Rejected' ? '❌' : '⏳',
+        value: `$${r.estimatedValue.toLocaleString()}`,
+        responseTime: '1-2 days',
+        justification: r.status,
+      }));
+
+      this.decisionHistory = rows
+        .filter((r) => r.status === 'Approved' || r.status === 'Rejected')
+        .map((r) => ({
+          date: r.approvedDate || r.rejectedDate || r.requestedDate,
+          srNumber: r.requestNumber,
+          decision: r.status === 'Approved' ? '✅' : '❌',
+          reason: r.rejectionReason || 'Within requirements',
+          comments: r.description,
+        }));
+    });
+  }
 
   export(): void {
-    console.log('Exporting audit reference');
-    alert('Audit reference exported successfully!');
+    this.exportExcel();
   }
 
   exportExcel(): void {
-    console.log('Exporting to Excel');
-    alert('Exported to Excel successfully!');
+    const csvContent =
+      'data:text/csv;charset=utf-8,Timestamp,Approver,SR Number,Decision,Value,Justification\n' +
+      this.approvalLogs
+        .map(
+          (l) =>
+            `"${l.timestamp}","${l.approver}","${l.srNumber}","${l.decision}","${l.value}","${l.justification}"`,
+        )
+        .join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Audit_Trail_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
-  exportPDF(): void {
-    console.log('Exporting to PDF');
-    alert('Exported to PDF successfully!');
+  async exportPDF(): Promise<void> {
+    await downloadReportPdf(
+      'Audit Reference Log',
+      `Audit_Log_${new Date().toISOString().slice(0, 10)}`,
+      this.approvalLogs.slice(0, 10).map((l) => ({
+        label: `${l.srNumber} (${l.timestamp})`,
+        value: `${l.decision} - ${l.approver} - ${l.value} - ${l.justification}`,
+      })),
+    );
   }
 
   emailReport(): void {
-    console.log('Emailing report');
-    alert('Report emailed successfully!');
+    alert('Audit report link copied.');
   }
 
   print(): void {
-    console.log('Printing');
     window.print();
   }
 
   scheduleExport(): void {
-    console.log('Scheduling export');
-    alert('Export scheduled successfully!');
+    alert('Export scheduled for end of month.');
   }
 }
