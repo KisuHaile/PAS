@@ -5,6 +5,7 @@ import {
   ReportDetailRow,
 } from '../compliance-reports/report-actions.util';
 import { ManagerDataService } from '../../../../core/services/manager-data.service';
+import { CurrentUserService } from '../../../../core/services/current-user.service';
 
 interface RequestReport {
   id: string;
@@ -36,6 +37,7 @@ interface RequestReport {
 })
 export class RequestReportsComponent implements OnInit {
   private readonly managerData = inject(ManagerDataService);
+  private readonly currentUserService = inject(CurrentUserService);
 
   protected readonly reports = signal<RequestReport[]>([]);
 
@@ -45,11 +47,14 @@ export class RequestReportsComponent implements OnInit {
   ngOnInit(): void {
     this.managerData.syncServiceRequests().subscribe(() => {
       const requests = this.managerData.requestRows();
+      const user = this.currentUserService.getCurrentUserValue();
+      const generatedBy = user?.fullName || user?.username || 'Eleni Grefie (Manager)';
+
       this.reports.set([
         {
           id: 'requests-current',
           reportName: `Department Request Report - ${new Date().toLocaleDateString()}`,
-          generatedBy: 'Backend data',
+          generatedBy,
           generatedDate: new Date().toLocaleDateString(),
           totalRequests: requests.length,
           pendingRequests: requests.filter((row) => row.status === 'Pending').length,

@@ -5,6 +5,7 @@ import {
   ReportDetailRow,
 } from '../compliance-reports/report-actions.util';
 import { ManagerDataService } from '../../../../core/services/manager-data.service';
+import { CurrentUserService } from '../../../../core/services/current-user.service';
 
 interface SIVReport {
   id: string;
@@ -35,6 +36,7 @@ interface SIVReport {
 })
 export class SIVReportsComponent implements OnInit {
   private readonly managerData = inject(ManagerDataService);
+  private readonly currentUserService = inject(CurrentUserService);
 
   protected readonly reports = signal<SIVReport[]>([]);
 
@@ -43,11 +45,14 @@ export class SIVReportsComponent implements OnInit {
 
   ngOnInit(): void {
     this.managerData.getSivs().subscribe((sivs) => {
+      const user = this.currentUserService.getCurrentUserValue();
+      const generatedBy = user?.fullName || user?.username || 'Eleni Grefie (Manager)';
+
       this.reports.set([
         {
           id: 'sivs-current',
           reportName: `SIV Report - ${new Date().toLocaleDateString()}`,
-          generatedBy: 'Backend data',
+          generatedBy,
           generatedDate: new Date().toLocaleDateString(),
           totalSIVs: sivs.length,
           totalItemsIssued: sivs.reduce((sum, siv) => sum + siv.totalItems, 0),
