@@ -149,14 +149,14 @@ export class ServiceRequestService {
   }
 
   approve(data: ApproveServiceRequestRequest): Observable<ApiResponse<unknown>> {
-    const body = { command: { id: data.id, remarks: data.remarks ?? '' } };
+    const body = { id: data.id, isApproved: true, remarks: data.remarks ?? '' };
     return this.apiService.post<unknown>(`ServiceRequests/${data.id}/approve`, body).pipe(
       map((raw) => this.normalizeEnvelope(raw)),
     );
   }
 
   reject(data: RejectServiceRequestRequest): Observable<ApiResponse<unknown>> {
-    const body = { command: { id: data.id, reason: data.reason } };
+    const body = { id: data.id, remarks: data.reason ?? '' };
     return this.apiService.post<unknown>(`ServiceRequests/${data.id}/reject`, body).pipe(
       map((raw) => this.normalizeEnvelope(raw)),
     );
