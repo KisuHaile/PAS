@@ -1,11 +1,17 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ManagerDataService } from '../../../../core/services/manager-data.service';
+import { WorkflowService } from '../../../../core/services/workflow.service';
+import { CurrentUserService } from '../../../../core/services/current-user.service';
+import { ServiceRequestService } from '../../../requisition/service-requests/services/service-request.service';
 
 export interface PendingApproval {
+  id?: string;
   srNumber: string;
   requester: string;
-  priority: 'Urgent' | 'Medium' | 'Normal';
+  priority: 'Urgent' | 'Medium' | 'Normal' | string;
   requestedDate: string;
   requiredDate: string;
   items: number;
@@ -15,7 +21,7 @@ export interface PendingApproval {
 
 export interface ApprovalHistory {
   srNumber: string;
-  decision: 'Approved' | 'Rejected';
+  decision: 'Approved' | 'Rejected' | string;
   value: string;
   responseTime: string;
 }
@@ -31,71 +37,21 @@ export interface WorkflowRule {
   templateUrl: './approval-queue-page.component.html',
   styleUrl: './approval-queue-page.component.scss',
 })
-export class ApprovalQueuePageComponent {
-  dateFrom = 'Dec 01, 2024';
-  dateTo = 'Dec 15, 2024';
+export class ApprovalQueuePageComponent implements OnInit {
+  private readonly router = inject(Router);
+  private readonly managerData = inject(ManagerDataService);
+  private readonly workflowService = inject(WorkflowService);
+  private readonly currentUserService = inject(CurrentUserService);
+  private readonly serviceRequestService = inject(ServiceRequestService);
+
+  dateFrom = new Date(Date.now() - 30 * 86400000).toLocaleDateString();
+  dateTo = new Date().toLocaleDateString();
   priorityFilter = 'All';
   valueFilter = 'All';
 
-  pendingApprovals: PendingApproval[] = [
-    {
-      srNumber: 'SR-2024-123',
-      requester: 'John Doe',
-      priority: 'Urgent',
-      requestedDate: 'Dec 15, 2024',
-      requiredDate: 'Dec 18',
-      items: 3,
-      value: '$5,348',
-      waiting: '2 hours',
-    },
-    {
-      srNumber: 'SR-2024-122',
-      requester: 'Peter Chen',
-      priority: 'Urgent',
-      requestedDate: 'Dec 14, 2024',
-      requiredDate: 'Dec 17',
-      items: 1,
-      value: '$2,800',
-      waiting: '1 day',
-    },
-    {
-      srNumber: 'SR-2024-121',
-      requester: 'Lisa Wong',
-      priority: 'Medium',
-      requestedDate: 'Dec 13, 2024',
-      requiredDate: 'Dec 20',
-      items: 2,
-      value: '$900',
-      waiting: '2 days',
-    },
-    {
-      srNumber: 'SR-2024-120',
-      requester: 'Mike Johnson',
-      priority: 'Medium',
-      requestedDate: 'Dec 12, 2024',
-      requiredDate: 'Dec 21',
-      items: 1,
-      value: '$250',
-      waiting: '3 days',
-    },
-    {
-      srNumber: 'SR-2024-119',
-      requester: 'Anna Lee',
-      priority: 'Normal',
-      requestedDate: 'Dec 11, 2024',
-      requiredDate: 'Dec 22',
-      items: 1,
-      value: '$250',
-      waiting: '4 days',
-    },
-  ];
-
-  approvalHistory: ApprovalHistory[] = [
-    { srNumber: 'SR-2024-118', decision: 'Approved', value: '$450', responseTime: '2.5 hours' },
-    { srNumber: 'SR-2024-117', decision: 'Rejected', value: '$2,499', responseTime: '1.2 hours' },
-    { srNumber: 'SR-2024-116', decision: 'Approved', value: '$1,200', responseTime: '3 hours' },
-    { srNumber: 'SR-2024-115', decision: 'Approved', value: '$350', responseTime: '0.5 hours' },
-  ];
+  allPendingApprovals: PendingApproval[] = [];
+  pendingApprovals: PendingApproval[] = [];
+  approvalHistory: ApprovalHistory[] = [];
 
   workflowRules: WorkflowRule[] = [
     { rule: 'Requests under $1,000: Auto-approve after 48 hours if no action' },
@@ -105,41 +61,108 @@ export class ApprovalQueuePageComponent {
     { rule: 'Escalation after: 5 days of no response' },
   ];
 
+  ngOnInit(): void {
+    this.refresh();
+  }
+
   refresh(): void {
-    console.log('Refreshing queue');
-    alert('Queue refreshed successfully!');
+    this.managerData.syncServiceRequests().subscribe(() => {
+      const pending = this.managerData.requestRows('pending');
+      const approved = this.managerData.requestRows('approved');
+      const rejected = this.managerData.requestRows('rejected');
+      const now = Date.now();
+
+      this.allPendingApprovals = pending.map((p) => {
+        const reqDate = new Date(p.requestedDate).getTime();
+        const diffHours = !isNaN(reqDate) ? Math.max(1, Math.round((now - reqDate) / (1000 * 60 * 60))) : 2;
+        const waiting = diffHours < 24 ? `${diffHours} hours` : `${Math.round(diffHours / 24)} day(s)`;
+        return {
+          id: p.id,
+          srNumber: p.requestNumber,
+          requester: p.requesterName,
+          priority: p.priority,
+          requestedDate: p.requestedDate,
+          requiredDate: p.requiredDate,
+          items: p.itemCount,
+          value: `$${p.estimatedValue.toLocaleString()}`,
+          waiting,
+        };
+      });
+
+      this.pendingApprovals = [...this.allPendingApprovals];
+
+      this.approvalHistory = [...approved, ...rejected].map((r) => ({
+        srNumber: r.requestNumber,
+        decision: r.status === 'Approved' ? 'Approved' : 'Rejected',
+        value: `$${r.estimatedValue.toLocaleString()}`,
+        responseTime: '1-2 days',
+      }));
+    });
   }
 
   approveRequest(srNumber: string): void {
-    console.log('Approving request:', srNumber);
-    alert(`Request ${srNumber} has been approved.`);
+    const item = this.allPendingApprovals.find((p) => p.srNumber === srNumber);
+    if (!item?.id) return;
+
+    const user = this.currentUserService.getCurrentUserValue();
+    const managerName = user?.fullName || user?.username || 'Manager';
+    const queueId = this.workflowService.getManagerQueueIdForCurrentUser();
+
+    this.workflowService.managerReviewRequest(
+      item.id,
+      'approve',
+      'Approved via Approval Queue',
+      queueId,
+      managerName,
+    );
+    this.serviceRequestService
+      .approveServiceRequest({ id: item.id, remarks: 'Approved via Approval Queue' })
+      .subscribe(() => this.refresh());
   }
 
   rejectRequest(srNumber: string): void {
-    if (confirm(`Are you sure you want to reject request ${srNumber}?`)) {
-      console.log('Rejecting request:', srNumber);
-      alert(`Request ${srNumber} has been rejected.`);
-    }
+    const item = this.allPendingApprovals.find((p) => p.srNumber === srNumber);
+    if (!item?.id) return;
+
+    const reason = prompt(`Enter rejection reason for ${srNumber}:`);
+    if (reason === null) return;
+
+    const user = this.currentUserService.getCurrentUserValue();
+    const managerName = user?.fullName || user?.username || 'Manager';
+    const queueId = this.workflowService.getManagerQueueIdForCurrentUser();
+
+    this.workflowService.managerReviewRequest(
+      item.id,
+      'reject',
+      reason || 'Rejected via Approval Queue',
+      queueId,
+      managerName,
+    );
+    this.serviceRequestService
+      .reject({ id: item.id, reason: reason || 'Rejected via Approval Queue' })
+      .subscribe(() => this.refresh());
   }
 
   viewRequestDetails(srNumber: string): void {
-    console.log('Viewing details for request:', srNumber);
-    alert(`Opening detailed view for request ${srNumber}`);
+    void this.router.navigate(['/manager/approvals/pending']);
   }
 
   applyFilters(): void {
-    console.log('Applying filters');
-    alert('Filters applied');
+    if (this.priorityFilter === 'All') {
+      this.pendingApprovals = [...this.allPendingApprovals];
+    } else {
+      this.pendingApprovals = this.allPendingApprovals.filter(
+        (p) => p.priority.toLowerCase() === this.priorityFilter.toLowerCase(),
+      );
+    }
   }
 
   viewFullHistory(): void {
-    console.log('Viewing full approval history');
-    alert('Navigating to full approval history page');
+    void this.router.navigate(['/manager/approvals/history']);
   }
 
   editWorkflowRules(): void {
-    console.log('Editing workflow rules');
-    alert('Opening workflow rules editor');
+    void this.router.navigate(['/manager/workflows/all']);
   }
 
   getPriorityIcon(priority: string): string {
