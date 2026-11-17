@@ -1,8 +1,14 @@
 <div class="create-workflow-container">
   <div class="page-header">
-    <h1>Create Workflow</h1>
-    <p class="subtitle">Create a new approval workflow</p>
+    <h1>{{ isEditMode() ? 'Edit Workflow' : 'Create Workflow' }}</h1>
+    <p class="subtitle">{{ isEditMode() ? 'Update existing approval workflow' : 'Create a new approval workflow' }}</p>
   </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 8px; background: #fee2e2; color: #991b1b;">
+      {{ errorMessage() }}
+    </div>
+  }
 
   <div class="form-card">
     <form [formGroup]="workflowForm" (ngSubmit)="submit()">
@@ -26,9 +32,9 @@
         <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="loading()">Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="loading()">
           @if (loading()) {
-            <span>Creating...</span>
+            <span>Saving...</span>
           } @else {
-            <span>Create Workflow</span>
+            <span>{{ isEditMode() ? 'Save Changes' : 'Create Workflow' }}</span>
           }
         </button>
       </div>

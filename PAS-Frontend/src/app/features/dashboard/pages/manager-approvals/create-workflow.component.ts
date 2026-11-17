@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApprovalWorkflowService } from '../../../workflow/approval-workflows/services/approval-workflow.service';
 
 @Component({
@@ -10,11 +10,14 @@ import { ApprovalWorkflowService } from '../../../workflow/approval-workflows/se
   templateUrl: './create-workflow.component.html',
   styleUrls: ['./create-workflow.component.scss']
 })
-export class CreateWorkflowComponent {
+export class CreateWorkflowComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly workflowService = inject(ApprovalWorkflowService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
+  protected readonly isEditMode = signal(false);
+  protected readonly workflowId = signal<string | null>(null);
   protected readonly submitted = signal(false);
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -24,65 +27,75 @@ export class CreateWorkflowComponent {
     description: ['', [Validators.required, Validators.minLength(10)]],
   });
 
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.isEditMode.set(true);
+      this.workflowId.set(id);
+      this.loading.set(true);
+      this.workflowService.getWorkflowById(id).subscribe({
+        next: (response) => {
+          this.loading.set(false);
+          if (response.succeeded && response.data) {
+            this.workflowForm.patchValue({
+              name: response.data.workflowName,
+              description: response.data.description,
+            });
+          }
+        },
+        error: () => {
+          this.loading.set(false);
+          this.errorMessage.set('Failed to load workflow for editing.');
+        },
+      });
+    }
+  }
+
   protected submit(): void {
     this.submitted.set(true);
     
     if (this.workflowForm.invalid) {
-      alert('Please fill in all required fields correctly.');
       return;
     }
     
     this.loading.set(true);
     
     const workflowData = {
-      workflowName: this.workflowForm.value.name!,  // Map 'name' to 'workflowName'
+      workflowName: this.workflowForm.value.name!,
       description: this.workflowForm.value.description!
     };
     
-    console.log('🔄 Creating workflow with data:', workflowData);
-    
-    this.workflowService.createWorkflow(workflowData).subscribe({
-      next: (response) => {
-        console.log('✅ Workflow creation response:', response);
-        this.loading.set(false);
-        if (response.succeeded) {
-          alert('Workflow created successfully!');
-          this.workflowForm.reset();
-          this.submitted.set(false);
-          // Navigate to all workflows page
-          this.router.navigate(['/manager/workflows/all']);
-        } else {
-          console.error('❌ Workflow creation failed:', response.message);
-          alert(`Failed to create workflow: ${response.message}`);
+    if (this.isEditMode() && this.workflowId()) {
+      this.workflowService.updateWorkflow(this.workflowId()!, workflowData).subscribe({
+        next: (response) => {
+          this.loading.set(false);
+          if (response.succeeded) {
+            this.router.navigate(['/manager/workflows/all']);
+          } else {
+            this.errorMessage.set(response.message || 'Failed to update workflow.');
+          }
+        },
+        error: (error) => {
+          this.loading.set(false);
+          this.errorMessage.set(error.error?.message || 'Error updating workflow.');
         }
-      },
-      error: (error) => {
-        this.loading.set(false);
-        console.error('❌ Error creating workflow:', {
-          status: error.status,
-          statusText: error.statusText,
-          message: error.message,
-          error: error.error,
-          url: error.url
-        });
-        
-        let errorMessage = 'An error occurred while creating the workflow.';
-        
-        if (error.status === 404) {
-          errorMessage = 'Workflow API endpoint not found. Please check the backend configuration.';
-        } else if (error.status === 401) {
-          errorMessage = 'Unauthorized. Please log in again.';
-        } else if (error.status === 400) {
-          errorMessage = error.error?.message || 'Invalid workflow data. Please check your input.';
-        } else if (error.status === 500) {
-          errorMessage = 'Server error. Please contact the administrator.';
-        } else if (error.error?.message) {
-          errorMessage = error.error.message;
+      });
+    } else {
+      this.workflowService.createWorkflow(workflowData).subscribe({
+        next: (response) => {
+          this.loading.set(false);
+          if (response.succeeded) {
+            this.router.navigate(['/manager/workflows/all']);
+          } else {
+            this.errorMessage.set(response.message || 'Failed to create workflow.');
+          }
+        },
+        error: (error) => {
+          this.loading.set(false);
+          this.errorMessage.set(error.error?.message || 'Error creating workflow.');
         }
-        
-        alert(errorMessage + '\n\nCheck the browser console for more details.');
-      }
-    });
+      });
+    }
   }
 
   protected cancel(): void {
