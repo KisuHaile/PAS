@@ -1,12 +1,32 @@
 <div class="all-requests-container">
   <div class="page-header">
-    <h1>All Requests</h1>
-    <p class="subtitle">View all service requests</p>
+    <h1>All Requests ({{ filteredRequests().length }})</h1>
+    <p class="subtitle">View and filter all service requests</p>
+  </div>
+
+  <div class="filter-bar" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <input
+      type="text"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQuery.set($event)"
+      placeholder="Search requests by number, requester, description..."
+      style="padding: 0.6rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; flex: 1; min-width: 240px;" />
+    
+    <select
+      [ngModel]="statusFilter()"
+      (ngModelChange)="statusFilter.set($event)"
+      style="padding: 0.6rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; background: white; min-width: 140px;">
+      <option value="All">All Statuses</option>
+      <option value="Pending">Pending</option>
+      <option value="Approved">Approved</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Issued">Issued</option>
+    </select>
   </div>
 
   <div class="requests-list">
-    @for (req of requests(); track req.id) {
-      <div class="request-card">
+    @for (req of filteredRequests(); track req.id) {
+      <div class="request-card" (click)="viewDetails(req)" style="cursor: pointer;">
         <div class="request-header">
           <div class="request-number">{{ req.requestNumber }}</div>
           <div class="status-badge" [class.pending]="req.status === 'Pending'" [class.approved]="req.status === 'Approved'" [class.rejected]="req.status === 'Rejected'" [class.issued]="req.status === 'Issued'">
@@ -21,9 +41,43 @@
             <div class="detail-row"><span class="label">Items:</span><span class="value">{{ req.itemCount }}</span></div>
             <div class="detail-row"><span class="label">Value:</span><span class="value">${{ req.estimatedValue.toLocaleString() }}</span></div>
             <div class="detail-row"><span class="label">Required Date:</span><span class="value">{{ req.requiredDate }}</span></div>
+            <div class="detail-row"><span class="label">Requested:</span><span class="value">{{ req.requestedDate }}</span></div>
           </div>
         </div>
       </div>
+    } @empty {
+      <div class="empty-state" style="text-align: center; padding: 3rem; color: #6b7280;">
+        <i class="bi bi-inbox" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;"></i>
+        <p>No requests found matching criteria</p>
+      </div>
     }
   </div>
+
+  @if (selectedRequest(); as req) {
+    <div class="modal-backdrop" (click)="closeDetails()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1050;">
+      <div class="modal-dialog" (click)="$event.stopPropagation()" style="background: white; border-radius: 12px; max-width: 560px; width: 90%; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem;">
+          <h2 style="margin: 0; font-size: 1.25rem;">{{ req.requestNumber }} Details</h2>
+          <button (click)="closeDetails()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; font-size: 0.875rem; margin-bottom: 1rem;">
+          <div><span style="color: #6b7280;">Requester:</span> <strong>{{ req.requesterName }}</strong></div>
+          <div><span style="color: #6b7280;">Department:</span> <strong>{{ req.department }}</strong></div>
+          <div><span style="color: #6b7280;">Priority:</span> <strong>{{ req.priority }}</strong></div>
+          <div><span style="color: #6b7280;">Status:</span> <strong>{{ req.status }}</strong></div>
+          <div><span style="color: #6b7280;">Items:</span> <strong>{{ req.itemCount }}</strong></div>
+          <div><span style="color: #6b7280;">Estimated Value:</span> <strong>${{ req.estimatedValue.toLocaleString() }}</strong></div>
+          <div><span style="color: #6b7280;">Required:</span> <strong>{{ req.requiredDate }}</strong></div>
+          <div><span style="color: #6b7280;">Requested:</span> <strong>{{ req.requestedDate }}</strong></div>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 0.875rem;">
+          <span style="color: #6b7280; font-weight: 500;">Justification:</span>
+          <p style="margin-top: 0.25rem; color: #111827;">{{ req.description }}</p>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+          <button (click)="closeDetails()" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; cursor: pointer;">Close</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>
