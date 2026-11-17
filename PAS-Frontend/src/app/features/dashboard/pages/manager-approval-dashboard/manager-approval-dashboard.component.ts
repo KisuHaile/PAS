@@ -135,11 +135,19 @@ export class ManagerApprovalDashboardComponent implements OnInit, OnDestroy {
         const sd = new Date(r.submittedDate);
         return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
       };
+      const isApproved = (r: ServiceRequest) => {
+        const status = (r.status || '').toLowerCase();
+        return status.includes('approve') || status.includes('accepted') || status.includes('issued');
+      };
+      const isRejected = (r: ServiceRequest) => {
+        const status = (r.status || '').toLowerCase();
+        return status.includes('reject') || status.includes('denied');
+      };
       rows.push({
         month: label,
         submitted: all.filter((r) => inMonth(r)).length,
-        approved: 0,
-        rejected: 0,
+        approved: all.filter((r) => inMonth(r) && isApproved(r)).length,
+        rejected: all.filter((r) => inMonth(r) && isRejected(r)).length,
       });
     }
     return rows;
@@ -249,7 +257,7 @@ export class ManagerApprovalDashboardComponent implements OnInit, OnDestroy {
   }
 
   approveRequest(requestId: string): void {
-    const managerId = this.workflowService.getDefaultManagerQueueId();
+    const managerId = this.managerQueueId();
     const managerName = this.managerName();
 
     this.workflowService.managerReviewRequest(
@@ -263,11 +271,14 @@ export class ManagerApprovalDashboardComponent implements OnInit, OnDestroy {
     this.serviceRequestService
       .approveServiceRequest({ id: requestId, remarks: 'Approved via manager dashboard' })
       .pipe(take(1))
-      .subscribe({ error: () => {} });
+      .subscribe({
+        next: () => this.pullPendingFromApi(),
+        error: () => {},
+      });
   }
 
   rejectRequest(requestId: string): void {
-    const managerId = this.workflowService.getDefaultManagerQueueId();
+    const managerId = this.managerQueueId();
     const managerName = this.managerName();
     const reason = prompt('Please enter a reason for rejection:');
     if (reason === null) return;
@@ -283,7 +294,10 @@ export class ManagerApprovalDashboardComponent implements OnInit, OnDestroy {
     this.serviceRequestService
       .reject({ id: requestId, reason: reason || 'Rejected via manager dashboard' })
       .pipe(take(1))
-      .subscribe({ error: () => {} });
+      .subscribe({
+        next: () => this.pullPendingFromApi(),
+        error: () => {},
+      });
   }
   viewRequestDetails(requestId: string): void {
     void this.router.navigate(['/manager/approvals/pending']);
