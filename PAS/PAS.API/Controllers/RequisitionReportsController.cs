@@ -1,4 +1,4 @@
-﻿using Application.Features.Reports.RequisitionHistoryReport;
+using Application.Features.Reports.RequisitionHistoryReport;
 using Application.Features.Reports.RequisitionHistoryReport.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -75,6 +75,15 @@ public class RequisitionReportsController : BaseApiController
 
     private byte[] GenerateExcelReport(RequisitionHistoryReportDto data)
     {
-        return Array.Empty<byte>();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("SR Number,Request Date,Requester,Department,Status,Item Count,Total Quantity,Issued Quantity,Approver,Approved Date");
+        if (data.Requisitions != null)
+        {
+            foreach (var req in data.Requisitions)
+            {
+                sb.AppendLine($"\"{req.SRNumber}\",\"{req.RequestDate:yyyy-MM-dd}\",\"{req.RequesterName}\",\"{req.Department}\",\"{req.Status}\",{req.ItemCount},{req.TotalQuantity},{req.IssuedQuantity},\"{req.ApproverName ?? string.Empty}\",\"{(req.ApprovedDate.HasValue ? req.ApprovedDate.Value.ToString("yyyy-MM-dd") : string.Empty)}\"");
+            }
+        }
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
     }
 }
