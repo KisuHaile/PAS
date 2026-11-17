@@ -4,6 +4,13 @@
     <p class="subtitle">Requests awaiting your approval</p>
   </div>
 
+  @if (feedbackMessage()) {
+    <div class="feedback-banner" [class.success]="feedbackMessage()?.type === 'success'" [class.error]="feedbackMessage()?.type === 'error'">
+      <i class="bi" [class.bi-check-circle]="feedbackMessage()?.type === 'success'" [class.bi-exclamation-circle]="feedbackMessage()?.type === 'error'"></i>
+      <span>{{ feedbackMessage()?.text }}</span>
+    </div>
+  }
+
   <div class="requests-list">
     @for (request of pendingRequests(); track request.id) {
       <div class="request-card">
@@ -42,9 +49,15 @@
         </div>
         
         <div class="request-actions">
-          <button class="btn btn-secondary" (click)="viewDetails(request.id)">View Details</button>
-          <button class="btn btn-secondary" (click)="reject(request.id)">Reject</button>
-          <button class="btn btn-primary" (click)="approve(request.id)">Approve</button>
+          <button class="btn btn-secondary" (click)="viewDetails(request.id)">
+            <i class="bi bi-eye"></i> View Details
+          </button>
+          <button class="btn btn-danger" (click)="openRejectModal(request)">
+            <i class="bi bi-x-circle"></i> Reject
+          </button>
+          <button class="btn btn-primary" (click)="approve(request.id)">
+            <i class="bi bi-check-circle"></i> Approve
+          </button>
         </div>
       </div>
     } @empty {
@@ -54,4 +67,61 @@
       </div>
     }
   </div>
+
+  <!-- View Details Modal -->
+  @if (selectedRequest(); as req) {
+    <div class="modal-backdrop" (click)="closeDetails()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Request Details - {{ req.requestNumber }}</h2>
+          <button class="btn-close" (click)="closeDetails()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-grid">
+            <div class="detail-item"><span class="lbl">Requester:</span> <strong>{{ req.requesterName }}</strong></div>
+            <div class="detail-item"><span class="lbl">Department:</span> <strong>{{ req.department }}</strong></div>
+            <div class="detail-item"><span class="lbl">Priority:</span> <strong>{{ req.priority }}</strong></div>
+            <div class="detail-item"><span class="lbl">Status:</span> <strong>{{ req.status }}</strong></div>
+            <div class="detail-item"><span class="lbl">Requested Date:</span> <strong>{{ req.requestedDate }}</strong></div>
+            <div class="detail-item"><span class="lbl">Required Date:</span> <strong>{{ req.requiredDate }}</strong></div>
+            <div class="detail-item"><span class="lbl">Total Items:</span> <strong>{{ req.itemCount }}</strong></div>
+            <div class="detail-item"><span class="lbl">Estimated Value:</span> <strong>${{ req.estimatedValue.toLocaleString() }}</strong></div>
+          </div>
+          <div class="detail-desc">
+            <span class="lbl">Justification / Description:</span>
+            <p>{{ req.description }}</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDetails()">Close</button>
+          <button class="btn btn-danger" (click)="closeDetails(); openRejectModal(req)">Reject</button>
+          <button class="btn btn-primary" (click)="closeDetails(); approve(req.id)">Approve</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Reject Reason Modal -->
+  @if (rejectingRequest(); as req) {
+    <div class="modal-backdrop" (click)="closeRejectModal()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Reject Request - {{ req.requestNumber }}</h2>
+          <button class="btn-close" (click)="closeRejectModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Please enter the reason for rejecting this request from <strong>{{ req.requesterName }}</strong>:</p>
+          <textarea
+            class="rejection-textarea"
+            [(ngModel)]="rejectionReason"
+            placeholder="Enter reason for rejection..."
+            rows="4"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeRejectModal()">Cancel</button>
+          <button class="btn btn-danger" (click)="confirmReject()">Confirm Rejection</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

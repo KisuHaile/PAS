@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subscription, take } from 'rxjs';
 import {
   ManagerDataService,
@@ -12,7 +13,7 @@ import { ServiceRequestService } from '../../../requisition/service-requests/ser
 @Component({
   selector: 'app-pending-approvals',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './pending-approvals.component.html',
   styleUrls: ['./pending-approvals.component.scss']
 })
@@ -24,6 +25,10 @@ export class PendingApprovalsComponent implements OnInit, OnDestroy {
   private readonly subs: Subscription[] = [];
 
   protected readonly pendingRequests = signal<ManagerRequestRow[]>([]);
+  protected readonly selectedRequest = signal<ManagerRequestRow | null>(null);
+  protected readonly rejectingRequest = signal<ManagerRequestRow | null>(null);
+  protected rejectionReason = '';
+  protected readonly feedbackMessage = signal<{ text: string; type: 'success' | 'error' } | null>(null);
 
   ngOnInit(): void {
     this.loadRequests();
@@ -36,43 +41,90 @@ export class PendingApprovalsComponent implements OnInit, OnDestroy {
 
   protected approve(id: string): void {
     const user = this.currentUserService.getCurrentUserValue();
+    const managerName = user?.fullName || user?.username || 'Manager';
+    const queueId = this.workflowService.getManagerQueueIdForCurrentUser();
+
     this.workflowService.managerReviewRequest(
       id,
       'approve',
       'Approved from pending approvals',
-      this.workflowService.getManagerQueueIdForCurrentUser(),
-      user?.fullName || user?.username || 'Manager',
+      queueId,
+      managerName,
     );
     this.serviceRequestService
       .approveServiceRequest({ id, remarks: 'Approved from pending approvals' })
       .pipe(take(1))
-      .subscribe({ error: () => {} });
-    this.loadRequests();
+      .subscribe({
+        next: () => {
+          this.setFeedback('Request approved successfully!', 'success');
+          this.loadRequests();
+        },
+        error: () => {
+          this.setFeedback('Request approved in local workflow.', 'success');
+          this.loadRequests();
+        },
+      });
   }
 
-  protected reject(id: string): void {
-    const reason = prompt('Please enter a reason for rejection:');
-    if (reason === null) return;
+  protected openRejectModal(request: ManagerRequestRow): void {
+    this.rejectionReason = '';
+    this.rejectingRequest.set(request);
+  }
+
+  protected closeRejectModal(): void {
+    this.rejectingRequest.set(null);
+    this.rejectionReason = '';
+  }
+
+  protected confirmReject(): void {
+    const request = this.rejectingRequest();
+    if (!request) return;
+
     const user = this.currentUserService.getCurrentUserValue();
+    const managerName = user?.fullName || user?.username || 'Manager';
+    const queueId = this.workflowService.getManagerQueueIdForCurrentUser();
+    const reason = this.rejectionReason.trim() || 'Rejected from pending approvals';
+
     this.workflowService.managerReviewRequest(
-      id,
+      request.id,
       'reject',
-      reason || 'Rejected from pending approvals',
-      this.workflowService.getManagerQueueIdForCurrentUser(),
-      user?.fullName || user?.username || 'Manager',
+      reason,
+      queueId,
+      managerName,
     );
     this.serviceRequestService
-      .reject({ id, reason: reason || 'Rejected from pending approvals' })
+      .reject({ id: request.id, reason })
       .pipe(take(1))
-      .subscribe({ error: () => {} });
-    this.loadRequests();
+      .subscribe({
+        next: () => {
+          this.setFeedback('Request rejected.', 'error');
+          this.closeRejectModal();
+          this.loadRequests();
+        },
+        error: () => {
+          this.setFeedback('Request rejected in local workflow.', 'error');
+          this.closeRejectModal();
+          this.loadRequests();
+        },
+      });
   }
 
   protected viewDetails(id: string): void {
     const request = this.pendingRequests().find((item) => item.id === id);
     if (request) {
-      alert(`${request.requestNumber}\n${request.requesterName}\n${request.description}`);
+      this.selectedRequest.set(request);
     }
+  }
+
+  protected closeDetails(): void {
+    this.selectedRequest.set(null);
+  }
+
+  private setFeedback(text: string, type: 'success' | 'error'): void {
+    this.feedbackMessage.set({ text, type });
+    setTimeout(() => {
+      this.feedbackMessage.set(null);
+    }, 4000);
   }
 
   private loadRequests(): void {
