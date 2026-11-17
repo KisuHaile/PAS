@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces;
+using Application.Common.Interfaces;
 using Application.Constants;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
@@ -126,6 +126,9 @@ WHERE [IsDeleted] = 0
                 SystemRoles.Staff => SystemRoles.RolePermissions.StaffPermissions,
                 SystemRoles.Inspector => SystemRoles.RolePermissions.InspectorPermissions,
                 SystemRoles.Approver => SystemRoles.RolePermissions.ApproverPermissions,
+                SystemRoles.Manager => SystemRoles.RolePermissions.ManagerPermissions,
+                SystemRoles.StoreManager => SystemRoles.RolePermissions.ManagerPermissions,
+                SystemRoles.PropertyManager => SystemRoles.RolePermissions.ManagerPermissions,
                 _ => Enumerable.Empty<string>()
             };
         }

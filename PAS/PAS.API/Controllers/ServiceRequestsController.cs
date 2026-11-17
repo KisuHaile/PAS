@@ -1,4 +1,4 @@
-﻿using Application.Features.Requisition.ServiceRequests.Commands;
+using Application.Features.Requisition.ServiceRequests.Commands;
 using Application.Features.Requisition.ServiceRequests.Commands.IssueServiceRequest;
 using Application.Features.Requisition.ServiceRequests.Commands.RejectServiceRequest;
 using Application.Features.Requisition.ServiceRequests.Dtos;
@@ -137,6 +137,22 @@ public class ServiceRequestsController : BaseApiController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ApproveServiceRequest(Guid id, [FromBody] ApproveServiceRequestCommand command)
     {
+        if (command == null)
+        {
+            command = new ApproveServiceRequestCommand { Id = id, IsApproved = true };
+        }
+        else
+        {
+            if (command.Id == Guid.Empty)
+            {
+                command = command with { Id = id };
+            }
+            if (!command.IsApproved)
+            {
+                command = command with { IsApproved = true };
+            }
+        }
+
         if (id != command.Id)
         {
             return BadRequest(ApiResponse<object>.ErrorResponse("ID mismatch", 400));
@@ -157,6 +173,15 @@ public class ServiceRequestsController : BaseApiController
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RejectServiceRequest(Guid id, [FromBody] RejectServiceRequestCommand command)
     {
+        if (command == null)
+        {
+            command = new RejectServiceRequestCommand { Id = id };
+        }
+        else if (command.Id == Guid.Empty)
+        {
+            command = command with { Id = id };
+        }
+
         if (id != command.Id)
         {
             return BadRequest(ApiResponse<object>.ErrorResponse("ID mismatch", 400));

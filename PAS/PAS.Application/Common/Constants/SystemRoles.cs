@@ -1,4 +1,4 @@
-﻿namespace Application.Constants
+namespace Application.Constants
 {
     public static class SystemRoles
     {
@@ -217,7 +217,17 @@
             public static readonly string[] ManagerPermissions =
             {
                 Permissions.Reports.ViewReports,
-                Permissions.Workflow.ViewWorkflows
+                Permissions.Reports.ViewDashboard,
+                Permissions.Requisition.ViewRequisitions,
+                Permissions.Requisition.ApproveRequisition,
+                Permissions.Requisition.RejectRequisition,
+                Permissions.Requisition.ViewSIV,
+                Permissions.Workflow.ViewWorkflows,
+                Permissions.Workflow.CreateWorkflow,
+                Permissions.Workflow.EditWorkflow,
+                Permissions.Workflow.ManageApprovers,
+                Permissions.Storage.ViewInventory,
+                Permissions.Catalog.ViewItems
             };
         }
         }
@@ -229,7 +239,21 @@
             public static readonly string[] StaffPermissions = { Permissions.Requisition.CreateRequisition, Permissions.Reports.ViewDashboard };
             public static readonly string[] InspectorPermissions = { Permissions.Receiving.PerformInspection, Permissions.Receiving.ViewInspections };
             public static readonly string[] ApproverPermissions = { Permissions.Requisition.ApproveRequisition, Permissions.TransferReturn.ApproveTransfer };
-            public static readonly string[] ManagerPermissions = { Permissions.Reports.ViewReports, Permissions.Workflow.ViewWorkflows };
+            public static readonly string[] ManagerPermissions =
+            {
+                Permissions.Reports.ViewReports,
+                Permissions.Reports.ViewDashboard,
+                Permissions.Requisition.ViewRequisitions,
+                Permissions.Requisition.ApproveRequisition,
+                Permissions.Requisition.RejectRequisition,
+                Permissions.Requisition.ViewSIV,
+                Permissions.Workflow.ViewWorkflows,
+                Permissions.Workflow.CreateWorkflow,
+                Permissions.Workflow.EditWorkflow,
+                Permissions.Workflow.ManageApprovers,
+                Permissions.Storage.ViewInventory,
+                Permissions.Catalog.ViewItems
+            };
         }
     }
 }
