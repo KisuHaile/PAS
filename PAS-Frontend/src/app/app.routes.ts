@@ -673,28 +673,18 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'workflows/edit/:id',
+        loadComponent: () =>
+          import('./features/dashboard/pages/manager-approvals/create-workflow.component').then(
+            (m) => m.CreateWorkflowComponent,
+          ),
+      },
+      {
         path: 'workflows/approvers',
         loadComponent: () =>
           import('./features/dashboard/pages/approver-matrix-page/approver-matrix-page.component').then(
             (m) => m.ApproverMatrixPageComponent,
           ),
-      },
-      // Inventory Management
-      {
-        path: 'inventory',
-        loadComponent: () => import('./features/store-inventory/stock-overview/pages/stock-overview.component').then(m => m.StockOverviewComponent),
-      },
-      {
-        path: 'inventory/low-stock',
-        loadComponent: () => import('./features/store-inventory/low-stock/pages/low-stock.component').then(m => m.LowStockComponent),
-      },
-      {
-        path: 'inventory/movements',
-        loadComponent: () => import('./features/store-inventory/stock-movements/pages/stock-movements.component').then(m => m.StockMovementsComponent),
-      },
-      {
-        path: 'inventory/ledger',
-        loadComponent: () => import('./features/storage/stock-ledger/stock-ledger').then(m => m.StockLedger),
       },
       {
         path: 'warehouses',
