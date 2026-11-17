@@ -1,4 +1,4 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { ApiService } from '../../../../core/services/api.service';
@@ -22,7 +22,7 @@ export interface WorkflowResponse {
 })
 export class ApprovalWorkflowService {
   private readonly apiService = inject(ApiService);
-  private workflowEndpoint: string | null = null;
+  private workflowEndpoint: string = 'ApprovalWorkflows';
 
   createWorkflow(request: CreateWorkflowRequest): Observable<{ succeeded: boolean; message: string; data?: WorkflowResponse }> {
     // If we already found the working endpoint, use it
@@ -31,7 +31,7 @@ export class ApprovalWorkflowService {
     }
 
     // Try different endpoint patterns
-    const endpoints = ['Workflows', 'Workflow', 'ApprovalWorkflows', 'ApprovalWorkflow'];
+    const endpoints = ['ApprovalWorkflows', 'Workflows', 'Workflow'];
     
     return this.tryEndpoints(endpoints, request, 0);
   }
@@ -77,7 +77,7 @@ export class ApprovalWorkflowService {
   }
 
   getAllWorkflows(): Observable<{ succeeded: boolean; data: WorkflowResponse[] }> {
-    const endpoint = this.workflowEndpoint || 'Workflows';
+    const endpoint = this.workflowEndpoint || 'ApprovalWorkflows';
     return this.apiService.get<WorkflowResponse[]>(endpoint).pipe(
       map((response) => ({
         succeeded: response.success,
@@ -87,7 +87,7 @@ export class ApprovalWorkflowService {
   }
 
   getWorkflowById(id: string): Observable<{ succeeded: boolean; data?: WorkflowResponse }> {
-    const endpoint = this.workflowEndpoint || 'Workflows';
+    const endpoint = this.workflowEndpoint || 'ApprovalWorkflows';
     return this.apiService.get<WorkflowResponse>(`${endpoint}/${id}`).pipe(
       map((response) => ({
         succeeded: response.success,
@@ -97,8 +97,9 @@ export class ApprovalWorkflowService {
   }
 
   updateWorkflow(id: string, request: CreateWorkflowRequest): Observable<{ succeeded: boolean; message: string }> {
-    const endpoint = this.workflowEndpoint || 'Workflows';
-    return this.apiService.put<any>(`${endpoint}/${id}`, request).pipe(
+    const endpoint = this.workflowEndpoint || 'ApprovalWorkflows';
+    const body = { id, workflowName: request.workflowName, description: request.description };
+    return this.apiService.put<any>(`${endpoint}/${id}`, body).pipe(
       map((response) => ({
         succeeded: response.success,
         message: response.message || (response.success ? 'Workflow updated successfully' : 'Failed to update workflow')
@@ -107,7 +108,7 @@ export class ApprovalWorkflowService {
   }
 
   deleteWorkflow(id: string): Observable<{ succeeded: boolean; message: string }> {
-    const endpoint = this.workflowEndpoint || 'Workflows';
+    const endpoint = this.workflowEndpoint || 'ApprovalWorkflows';
     return this.apiService.delete<any>(`${endpoint}/${id}`).pipe(
       map((response) => ({
         succeeded: response.success,
