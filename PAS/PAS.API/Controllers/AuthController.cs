@@ -63,7 +63,7 @@ public class AuthController : BaseApiController
             Department = request.Department,
             EmployeeCode = request.EmployeeCode,
             PhoneNumber = request.PhoneNumber,
-            RoleName = request.RoleName
+            RoleName = "Employee" // Public registration is strictly restricted to Employee role
         };
 
         var result = await Mediator.Send(command);

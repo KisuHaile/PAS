@@ -20,11 +20,21 @@ namespace Domain.Users
         {
         }
 
-        public Employee(string code, string name, string department)
+        public Employee(string code, string name, string department, string? email = null, string? position = null)
         {
             EmployeeCode = code;
             FullName = name;
             Department = department;
+            Email = email;
+            Position = position;
+        }
+
+        public void UpdateDetails(string name, string department, string? email = null, string? position = null)
+        {
+            FullName = name;
+            Department = department;
+            Email = email;
+            Position = position;
         }
     }
 }

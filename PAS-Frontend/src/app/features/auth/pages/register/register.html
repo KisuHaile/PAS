@@ -277,19 +277,6 @@
         <p class="field-error">Passwords do not match.</p>
       }
 
-      <label class="auth-label" for="register-role">Role</label>
-      <div class="input-shell input-shell--select">
-        <i class="bi bi-shield-lock input-icon"></i>
-        <select id="register-role" formControlName="roleName" class="select-field">
-          @for (role of roleOptions; track role.value) {
-            <option [value]="role.value">{{ role.label }}</option>
-          }
-        </select>
-      </div>
-      @if (showControlError('roleName') && registerForm.controls.roleName.hasError('required')) {
-        <p class="field-error">Please select a role.</p>
-      }
-
       <label class="remember-row">
         <input type="checkbox" formControlName="acceptedTerms" />
         <span>I agree to the terms and privacy policy</span>

@@ -7,14 +7,17 @@
         public const string Admin = "Admin";
         public const string StoreManager = "Store Manager";
         public const string StoreOfficer = "Store Officer";
+        public const string StoreKeeper = "StoreKeeper";
         public const string PropertyManager = "Property Manager";
         public const string PropertyOfficer = "Property Officer";
         public const string RequisitionOfficer = "Requisition Officer";
         public const string Approver = "Approver";
         public const string Auditor = "Auditor";
+        public const string ComplianceOfficer = "Compliance Officer";
         public const string Inspector = "Inspector";
         public const string Manager = "Manager";
         public const string Staff = "Staff";
+        public const string Employee = "Employee";
         public const string Viewer = "Viewer";
 
         // ========== GET ALL ROLES ==========
@@ -22,8 +25,9 @@
         {
             return new List<string>
             {
-                SuperAdmin, Admin, StoreManager, StoreOfficer, PropertyManager,
-                PropertyOfficer, RequisitionOfficer, Approver, Auditor, Staff, Viewer
+                SuperAdmin, Admin, StoreManager, StoreOfficer, StoreKeeper, PropertyManager,
+                PropertyOfficer, RequisitionOfficer, Approver, Auditor, ComplianceOfficer,
+                Manager, Staff, Employee, Viewer
             };
         }
 
@@ -166,12 +170,49 @@
                         Permissions.Property.ViewProperties
                     },
 
+                    [ComplianceOfficer] = new List<string>
+                    {
+                        Permissions.Reports.ViewReports, Permissions.Reports.ExportReports,
+                        Permissions.Audit.ViewAuditTrail,
+                        Permissions.Storage.ViewInventory,
+                        Permissions.Property.ViewProperties
+                    },
+
                     [Staff] = new List<string>
                     {
                         Permissions.Catalog.ViewItems,
                         Permissions.Property.ViewProperties,
                         Permissions.Requisition.ViewRequisitions, Permissions.Requisition.CreateRequisition,
                         Permissions.Reports.ViewDashboard
+                    },
+
+                    [Employee] = new List<string>
+                    {
+                        Permissions.Catalog.ViewItems,
+                        Permissions.Property.ViewProperties,
+                        Permissions.Requisition.ViewRequisitions, Permissions.Requisition.CreateRequisition,
+                        Permissions.Reports.ViewDashboard
+                    },
+
+                    [StoreKeeper] = new List<string>
+                    {
+                        Permissions.Catalog.ViewCategories, Permissions.Catalog.ViewItems,
+                        Permissions.Storage.ViewWarehouses, Permissions.Storage.ViewShelfLocations,
+                        Permissions.Storage.ViewInventory, Permissions.Storage.CountStock,
+                        Permissions.Requisition.ViewRequisitions, Permissions.Requisition.IssueRequisition,
+                        Permissions.Receiving.ViewReceivingNotes, Permissions.Receiving.CreateReceivingNote,
+                        Permissions.Reports.ViewReports
+                    },
+
+                    [Manager] = new List<string>
+                    {
+                        Permissions.Reports.ViewReports,
+                        Permissions.Workflow.ViewWorkflows,
+                        Permissions.Requisition.ViewRequisitions,
+                        Permissions.Requisition.ApproveRequisition,
+                        Permissions.Requisition.RejectRequisition,
+                        Permissions.TransferReturn.ViewTransfers,
+                        Permissions.TransferReturn.ApproveTransfer
                     },
 
                     [Viewer] = new List<string>
@@ -188,6 +229,24 @@
             {
                 Permissions.System.ViewSystemSettings,
                 Permissions.Reports.ViewReports
+            };
+
+            public static readonly string[] ComplianceOfficerPermissions =
+            {
+                Permissions.Reports.ViewReports,
+                Permissions.Audit.ViewAuditTrail
+            };
+
+            public static readonly string[] StoreKeeperPermissions =
+            {
+                Permissions.Storage.ViewInventory,
+                Permissions.Requisition.ViewRequisitions
+            };
+
+            public static readonly string[] EmployeePermissions =
+            {
+                Permissions.Requisition.CreateRequisition,
+                Permissions.Reports.ViewDashboard
             };
 
             public static readonly string[] StoreOfficerPermissions =

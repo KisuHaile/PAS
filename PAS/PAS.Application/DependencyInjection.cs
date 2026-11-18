@@ -17,7 +17,8 @@ public static class DependencyInjection
         // Validators
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
-        // Pipeline
+        // Pipeline: Authorization executes first, then Validation
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehaviour<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
         return services;

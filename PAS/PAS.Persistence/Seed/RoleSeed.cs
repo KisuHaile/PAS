@@ -12,6 +12,7 @@ namespace Persistence.Seed
                 "Admin",
                 "Manager",
                 "StoreKeeper",
+                "Compliance Officer",
                 "Employee"
             };
 

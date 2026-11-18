@@ -57,13 +57,44 @@ namespace Application.Common.Behaviours
                     }
                 }
 
+                // Permission-based authorization
+                var authorizeAttributesWithPermissions = authorizeAttributes.Where(a => !string.IsNullOrWhiteSpace(a.Permissions));
+                if (authorizeAttributesWithPermissions.Any())
+                {
+                    var authorized = false;
+
+                    // Administrators have blanket access to all system permissions
+                    if (_currentUserService.IsInRole("Admin") || _currentUserService.IsInRole("Super Admin"))
+                    {
+                        authorized = true;
+                    }
+                    else
+                    {
+                        foreach (var permissions in authorizeAttributesWithPermissions.Select(a => a.Permissions!.Split(',')))
+                        {
+                            foreach (var permission in permissions)
+                            {
+                                if (_currentUserService.HasPermission(permission.Trim()))
+                                {
+                                    authorized = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!authorized)
+                    {
+                        throw new ForbiddenAccessException("User does not have the required permission");
+                    }
+                }
+
                 // Policy-based authorization
                 var authorizeAttributesWithPolicies = authorizeAttributes.Where(a => !string.IsNullOrWhiteSpace(a.Policy));
                 if (authorizeAttributesWithPolicies.Any())
                 {
-                    foreach (var policy in authorizeAttributesWithPolicies.Select(a => a.Policy))
+                    foreach (var policy in authorizeAttributesWithPolicies.Select(a => a.Policy!))
                     {
-                        // Implement policy check here
                         var authorized = await AuthorizeAsync(policy);
                         if (!authorized)
                         {
@@ -78,8 +109,12 @@ namespace Application.Common.Behaviours
 
         private Task<bool> AuthorizeAsync(string policy)
         {
-            // Implement policy authorization logic
-            return Task.FromResult(true);
+            if (_currentUserService.IsInRole("Admin") || _currentUserService.IsInRole("Super Admin"))
+            {
+                return Task.FromResult(true);
+            }
+
+            return Task.FromResult(false);
         }
     }
 }

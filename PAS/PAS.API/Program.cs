@@ -1,4 +1,5 @@
 using System.Text;
+using Application;
 using Application.Common.Json;
 using Application.Common.Interfaces;
 using Application.Common.Models;
@@ -55,8 +56,7 @@ builder.Services.Configure<ImageAnalysisSettings>(builder.Configuration.GetSecti
 
 PAS.API.Extensions.ServiceCollectionExtensions.AddCorsPolicy(builder.Services, builder.Configuration);
 
-builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssemblies(typeof(Result).Assembly));
+builder.Services.AddApplication();
 
 builder.Services.AddAutoMapper(_ => { }, typeof(Result).Assembly, typeof(Program).Assembly);
 

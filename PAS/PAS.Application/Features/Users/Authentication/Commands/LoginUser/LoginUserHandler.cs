@@ -144,15 +144,24 @@ public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, Result<
 
     private string[] GetPermissionsForRole(string role)
     {
-        return role switch
+        var defaultPermissions = SystemRoles.DefaultPermissions.Get();
+        if (defaultPermissions.TryGetValue(role, out var permissions))
         {
-            SystemRoles.Admin => SystemRoles.RolePermissions.AdminPermissions,
-            SystemRoles.StoreOfficer => SystemRoles.RolePermissions.StoreOfficerPermissions,
-            SystemRoles.Staff => SystemRoles.RolePermissions.StaffPermissions,
-            SystemRoles.Inspector => SystemRoles.RolePermissions.InspectorPermissions,
-            SystemRoles.Approver => SystemRoles.RolePermissions.ApproverPermissions,
-            SystemRoles.Manager => SystemRoles.RolePermissions.ManagerPermissions,
-            _ => Array.Empty<string>()
-        };
+            return permissions.ToArray();
+        }
+
+        var normalized = role.Replace(" ", "").ToLowerInvariant();
+        if (normalized is "admin" or "superadmin")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Admin)?.ToArray() ?? Array.Empty<string>();
+        if (normalized is "storekeeper" or "storeofficer" or "storemanager")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.StoreKeeper)?.ToArray() ?? Array.Empty<string>();
+        if (normalized is "complianceofficer" or "compliance" or "auditor")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.ComplianceOfficer)?.ToArray() ?? Array.Empty<string>();
+        if (normalized is "employee" or "staff")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Employee)?.ToArray() ?? Array.Empty<string>();
+        if (normalized is "manager" or "approver")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Manager)?.ToArray() ?? Array.Empty<string>();
+
+        return Array.Empty<string>();
     }
 }

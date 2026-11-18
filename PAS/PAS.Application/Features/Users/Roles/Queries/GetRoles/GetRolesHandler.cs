@@ -52,15 +52,24 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, Result<List<R
 
     private List<string> GetPermissionsForRole(string roleName)
     {
-        return roleName switch
+        var defaultPermissions = SystemRoles.DefaultPermissions.Get();
+        if (defaultPermissions.TryGetValue(roleName, out var permissions))
         {
-            SystemRoles.Admin => SystemRoles.RolePermissions.AdminPermissions.ToList(),
-            SystemRoles.StoreOfficer => SystemRoles.RolePermissions.StoreOfficerPermissions.ToList(),
-            SystemRoles.Staff => SystemRoles.RolePermissions.StaffPermissions.ToList(),
-            SystemRoles.Inspector => SystemRoles.RolePermissions.InspectorPermissions.ToList(),
-            SystemRoles.Approver => SystemRoles.RolePermissions.ApproverPermissions.ToList(),
-            SystemRoles.Manager => SystemRoles.RolePermissions.ManagerPermissions.ToList(),
-            _ => new List<string>()
-        };
+            return permissions;
+        }
+
+        var normalized = roleName.Replace(" ", "").ToLowerInvariant();
+        if (normalized is "admin" or "superadmin")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Admin) ?? new List<string>();
+        if (normalized is "storekeeper" or "storeofficer" or "storemanager")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.StoreKeeper) ?? new List<string>();
+        if (normalized is "complianceofficer" or "compliance" or "auditor")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.ComplianceOfficer) ?? new List<string>();
+        if (normalized is "employee" or "staff")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Employee) ?? new List<string>();
+        if (normalized is "manager" or "approver")
+            return defaultPermissions.GetValueOrDefault(SystemRoles.Manager) ?? new List<string>();
+
+        return new List<string>();
     }
 }

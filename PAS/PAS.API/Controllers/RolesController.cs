@@ -55,9 +55,11 @@ public class RolesController : BaseApiController
     /// Create a new role
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [SwaggerOperation(Summary = "Create a new role")]
     [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ApiResponse<Guid>>> CreateRole(CreateRoleCommand command)
     {
         _logger.LogInformation("Creating new role: {Name}", command.RoleName);
@@ -69,9 +71,11 @@ public class RolesController : BaseApiController
     /// Update an existing role
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     [SwaggerOperation(Summary = "Update an existing role")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateRole(Guid id, UpdateRoleCommand command)
     {
@@ -89,9 +93,11 @@ public class RolesController : BaseApiController
     /// Delete a role
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     [SwaggerOperation(Summary = "Delete a role")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteRole(Guid id)
     {

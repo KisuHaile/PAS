@@ -13,6 +13,7 @@ namespace Persistence.Seed
                 new { UserName = "admin", Email = "admin@pms.com", FullName = "System Administrator", Role = "Admin" },
                 new { UserName = "manager", Email = "manager@pms.com", FullName = "Operations Manager", Role = "Manager" },
                 new { UserName = "storekeeper", Email = "storekeeper@pms.com", FullName = "Head Storekeeper", Role = "StoreKeeper" },
+                new { UserName = "compliance", Email = "compliance@pms.com", FullName = "Compliance Officer", Role = "Compliance Officer" },
                 new { UserName = "employee", Email = "employee@pms.com", FullName = "Staff Employee", Role = "Employee" }
             };
 

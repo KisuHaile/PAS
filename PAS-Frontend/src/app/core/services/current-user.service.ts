@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, take } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { BehaviorSubject, Observable, catchError, map, of, take } from 'rxjs';
 import { DEFAULT_AVATAR_PATH, StoredUser, USER_STORAGE_KEY } from '../models/stored-user.model';
 import { TokenService } from './token.service';
 import { UserStorageService } from './user-storage.service';
@@ -212,9 +213,22 @@ export class CurrentUserService {
 
     this.employeesService
       .getByUserId(id)
-      .pipe(take(1))
+      .pipe(
+        take(1),
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse && err.status === 401) {
+            // Token is invalid or expired: clear session
+            this.clear();
+            this.tokenService.clear();
+          }
+          // On 403 Forbidden or other errors, do not clear session or redirect;
+          // user remains logged in with the basic info already hydrated from storage.
+          return of(null);
+        }),
+      )
       .subscribe({
         next: (res) => {
+          if (!res) return;
           const d = res.data as any;
           if (!d) return;
 

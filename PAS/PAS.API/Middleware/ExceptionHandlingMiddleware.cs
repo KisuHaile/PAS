@@ -41,10 +41,16 @@ public class ExceptionHandlingMiddleware
             {
                 NotFoundException => StatusCodes.Status404NotFound,
                 UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+                ForbiddenAccessException => StatusCodes.Status403Forbidden,
                 ValidationException => StatusCodes.Status400BadRequest,
                 _ => StatusCodes.Status500InternalServerError
             }
         };
+
+        if (exception is ForbiddenAccessException or UnauthorizedAccessException)
+        {
+            response.Errors = new[] { exception.Message };
+        }
 
         if (exception is ValidationException validationEx)
         {

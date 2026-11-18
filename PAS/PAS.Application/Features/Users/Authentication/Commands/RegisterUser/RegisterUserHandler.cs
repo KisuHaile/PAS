@@ -53,31 +53,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         var identityRole = await _roleManager.FindByNameAsync(roleName);
         if (identityRole == null)
         {
-            var createRoleResult = await _roleManager.CreateAsync(new ApplicationRole
-            {
-                Name = roleName,
-                Description = $"Auto-created role: {roleName}"
-            });
-
-            if (!createRoleResult.Succeeded)
-            {
-                var errors = string.Join("; ", createRoleResult.Errors.Select(e => e.Description));
-                return Result<Guid>.Failure($"Role creation failed: {errors}");
-            }
+            return Result<Guid>.Failure($"Role '{roleName}' does not exist. Dynamic role creation is disabled.");
         }
-
-        var employee = new Domain.Users.Employee(
-            employeeCode,
-            request.FullName,
-            request.Department);
-
-        if (!string.IsNullOrWhiteSpace(request.Email))
-            typeof(Domain.Users.Employee).GetProperty("Email")?.SetValue(employee, request.Email);
-
-        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
-            typeof(Domain.Users.Employee).GetProperty("Phone")?.SetValue(employee, request.PhoneNumber);
-
-        _context.Employees.Add(employee);
 
         // Create Identity user in AspNetUsers
         var identityUser = new ApplicationUser
@@ -100,11 +77,28 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         var addToRoleResult = await _userManager.AddToRoleAsync(identityUser, roleName);
         if (!addToRoleResult.Succeeded)
         {
+            await _userManager.DeleteAsync(identityUser);
             var errors = string.Join("; ", addToRoleResult.Errors.Select(e => e.Description));
             return Result<Guid>.Failure($"Role assignment failed: {errors}");
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            var employee = new Domain.Users.Employee(
+                employeeCode,
+                request.FullName,
+                request.Department,
+                request.Email,
+                position: roleName);
+
+            _context.Employees.Add(employee);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            await _userManager.DeleteAsync(identityUser);
+            return Result<Guid>.Failure($"Registration failed while saving employee record: {ex.Message}");
+        }
 
         return Guid.TryParse(identityUser.Id, out var userId)
             ? Result<Guid>.Success(userId)

@@ -4,5 +4,5 @@ using MediatR;
 
 namespace Application.Features.Users.Employees.Queries;
 
-[Authorize(Permissions = Permissions.Employees.View)]
+[Authorize]
 public record GetEmployeeByUserIdQuery(Guid UserId) : IRequest<Result<EmployeeDetailDto>>;

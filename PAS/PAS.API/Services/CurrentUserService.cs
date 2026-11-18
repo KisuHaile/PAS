@@ -119,18 +119,28 @@ WHERE [IsDeleted] = 0
             if (string.IsNullOrWhiteSpace(Role))
                 return Enumerable.Empty<string>();
 
-            return Role switch
+            var defaultPermissions = SystemRoles.DefaultPermissions.Get();
+            if (defaultPermissions.TryGetValue(Role, out var permissions))
             {
-                SystemRoles.Admin => SystemRoles.RolePermissions.AdminPermissions,
-                SystemRoles.StoreOfficer => SystemRoles.RolePermissions.StoreOfficerPermissions,
-                SystemRoles.Staff => SystemRoles.RolePermissions.StaffPermissions,
-                SystemRoles.Inspector => SystemRoles.RolePermissions.InspectorPermissions,
-                SystemRoles.Approver => SystemRoles.RolePermissions.ApproverPermissions,
-                _ => Enumerable.Empty<string>()
-            };
+                return permissions;
+            }
+
+            var normalized = Role.Replace(" ", "").ToLowerInvariant();
+            if (normalized is "admin" or "superadmin")
+                return defaultPermissions.GetValueOrDefault(SystemRoles.Admin) ?? Enumerable.Empty<string>();
+            if (normalized is "storekeeper" or "storeofficer" or "storemanager")
+                return defaultPermissions.GetValueOrDefault(SystemRoles.StoreKeeper) ?? Enumerable.Empty<string>();
+            if (normalized is "complianceofficer" or "compliance" or "auditor")
+                return defaultPermissions.GetValueOrDefault(SystemRoles.ComplianceOfficer) ?? Enumerable.Empty<string>();
+            if (normalized is "employee" or "staff")
+                return defaultPermissions.GetValueOrDefault(SystemRoles.Employee) ?? Enumerable.Empty<string>();
+            if (normalized is "manager" or "approver")
+                return defaultPermissions.GetValueOrDefault(SystemRoles.Manager) ?? Enumerable.Empty<string>();
+
+            return Enumerable.Empty<string>();
         }
     }
 
-    public bool IsAuthenticated => UserId.HasValue;
+    public bool IsAuthenticated => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true || UserId.HasValue;
     public bool IsInRole(string role) => _httpContextAccessor.HttpContext?.User?.IsInRole(role) == true;
 }

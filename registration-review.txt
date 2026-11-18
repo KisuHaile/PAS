@@ -1,0 +1,1360 @@
+========== AUTH CONTROLLER ==========
+﻿using Application.Features.Users.Authentication.Commands;
+using Application.Features.Users.Authentication.Dtos;
+using Application.Features.Users.Authentication.Queries;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PAS.API.Models.Requests;
+using PAS.API.Models.Responses;
+using Swashbuckle.AspNetCore.Annotations;
+
+namespace PAS.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : BaseApiController
+{
+    private readonly ILogger<AuthController> _logger;
+
+    public AuthController(ILogger<AuthController> logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Authenticate user and get JWT token
+    /// </summary>
+    [HttpPost("login")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Login to the system")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<AuthResultDto>>> Login(LoginRequest request)
+    {
+        _logger.LogInformation("Login attempt for user: {Username}", request.Username);
+
+        var command = new LoginUserCommand
+        {
+            Username = request.Username,
+            Password = request.Password,
+            RememberMe = false
+        };
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Register a new user
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Register a new user")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<Guid>>> Register(RegisterRequest request)
+    {
+        var command = new RegisterUserCommand
+        {
+            Username = request.Username,
+            Password = request.Password,
+            Email = request.Email ?? string.Empty,
+            FullName = request.FullName,
+            Department = request.Department,
+            EmployeeCode = request.EmployeeCode,
+            PhoneNumber = request.PhoneNumber,
+            RoleName = request.RoleName
+        };
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Logout current user
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Logout current user")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout()
+    {
+        var command = new LogoutUserCommand();
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Refresh JWT token
+    /// </summary>
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Refresh JWT token")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<AuthResultDto>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        var command = new RefreshTokenCommand { RefreshToken = request.RefreshToken };
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Change password
+    /// </summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Change user password")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var command = new ChangePasswordCommand
+        {
+            CurrentPassword = request.CurrentPassword,
+            NewPassword = request.NewPassword
+        };
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Forgot password - send reset email
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Send password reset email")]
+    [ProducesResponseType(typeof(ApiResponse<ForgotPasswordResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<ForgotPasswordResponseDto>>> ForgotPassword(ForgotPasswordRequest request)
+    {
+        var command = new ForgotPasswordCommand { Email = request.Email };
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Reset password with token
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Reset password using token")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var command = new ResetPasswordCommand
+        {
+            Email = request.Email,
+            Token = request.Token,
+            NewPassword = request.NewPassword
+        };
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Upload profile photo for the currently authenticated user
+    /// </summary>
+    [HttpPost("upload-profile-photo")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)]
+    [SwaggerOperation(Summary = "Upload profile photo")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<string>>> UploadProfilePhoto([FromForm] UploadProfilePhotoCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get current user profile
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Get current user profile")]
+    [ProducesResponseType(typeof(ApiResponse<CurrentUserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<CurrentUserDto>>> GetCurrentUser()
+    {
+        var command = new GetCurrentUserQuery();
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+}
+========== REGISTER REQUEST ==========
+﻿using System.ComponentModel.DataAnnotations;
+using PAS.API.Validators;
+
+namespace PAS.API.Models.Requests;
+
+public class RegisterRequest
+{
+    [Required]
+    [StringLength(50, MinimumLength = 3)]
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidateUsernameAttribute))]
+    public string Username { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
+    public string FullName { get; set; } = string.Empty;
+
+    [StringLength(20)]
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidateAlphanumericAttribute))]
+    public string? EmployeeCode { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidateAlphaOnlyAttribute))]
+    public string Department { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100, MinimumLength = 8)]
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidateStrongPasswordAttribute))]
+    public string Password { get; set; } = string.Empty;
+
+    [Required]
+    [Compare("Password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+
+    [StringLength(50)]
+    public string? RoleName { get; set; }
+
+    [EmailAddress]
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidateEmailAttribute))]
+    public string? Email { get; set; }
+
+    [CustomValidation(typeof(CustomValidators), nameof(CustomValidators.ValidatePhoneAttribute))]
+    public string? PhoneNumber { get; set; }
+}
+========== REGISTER COMMAND ==========
+﻿using FluentValidation;
+using MediatR;
+
+namespace Application.Features.Users.Authentication.Commands;
+
+public record RegisterUserCommand : IRequest<Result<Guid>>
+{
+    public string Username { get; init; } = string.Empty;
+    public string Password { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
+    public string Department { get; init; } = string.Empty;
+    public string? EmployeeCode { get; init; }
+    public string? PhoneNumber { get; init; }
+    public string? RoleName { get; init; }
+}
+
+public class RegisterUserCommandValidator : AbstractValidator<RegisterUserCommand>
+{
+    public RegisterUserCommandValidator()
+    {
+        RuleFor(v => v.Username)
+            .NotEmpty().WithMessage("Username is required.")
+            .MinimumLength(3).WithMessage("Username must be at least 3 characters.")
+            .MaximumLength(50).WithMessage("Username must not exceed 50 characters.")
+            .Matches("^[a-zA-Z0-9._-]+$").WithMessage("Username can only contain letters, numbers, dots, underscores and hyphens.");
+
+        RuleFor(v => v.Password)
+            .NotEmpty().WithMessage("Password is required.")
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters.")
+            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
+            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
+            .Matches("[0-9]").WithMessage("Password must contain at least one number.")
+            .Matches(@"[!@#$%^&*()_\-+=\[{\]};:<>|./?`~\\]").WithMessage("Password must contain at least one special character.");
+
+        RuleFor(v => v.Email)
+            .NotEmpty().WithMessage("Email is required.")
+            .EmailAddress().WithMessage("Valid email is required.")
+            .MaximumLength(100).WithMessage("Email must not exceed 100 characters.");
+
+        RuleFor(v => v.FullName)
+            .NotEmpty().WithMessage("Full name is required.")
+            .MaximumLength(100).WithMessage("Full name must not exceed 100 characters.");
+
+        RuleFor(v => v.Department)
+            .NotEmpty().WithMessage("Department is required.")
+            .MaximumLength(50).WithMessage("Department must not exceed 50 characters.");
+
+        RuleFor(v => v.EmployeeCode)
+            .MaximumLength(20).WithMessage("Employee code must not exceed 20 characters.")
+            .When(v => !string.IsNullOrWhiteSpace(v.EmployeeCode));
+
+        RuleFor(v => v.RoleName)
+            .MaximumLength(50).WithMessage("Role name must not exceed 50 characters.")
+            .When(v => !string.IsNullOrWhiteSpace(v.RoleName));
+    }
+}
+========== REGISTER HANDLER ==========
+using MediatR;
+using Microsoft.AspNetCore.Identity;
+using Persistence.Identity;
+
+namespace Application.Features.Users.Authentication.Commands;
+
+public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, Result<Guid>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<ApplicationRole> _roleManager;
+
+    public RegisterUserCommandHandler(
+        IApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        RoleManager<ApplicationRole> roleManager)
+    {
+        _context = context;
+        _userManager = userManager;
+        _roleManager = roleManager;
+    }
+
+    public async Task<Result<Guid>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+    {
+        // Check if username already exists in Identity
+        var existingIdentityUsername = await _userManager.FindByNameAsync(request.Username);
+        if (existingIdentityUsername != null)
+        {
+            return Result<Guid>.Failure($"Username '{request.Username}' is already taken.");
+        }
+
+        // Check if email already exists in Identity
+        var existingIdentityEmail = await _userManager.FindByEmailAsync(request.Email);
+        if (existingIdentityEmail != null)
+        {
+            return Result<Guid>.Failure($"Email '{request.Email}' is already registered.");
+        }
+
+        var employeeCode = await GetOrGenerateEmployeeCodeAsync(request.EmployeeCode, cancellationToken);
+
+        var existingEmployeeCode = await _context.Employees
+            .AnyAsync(e => e.EmployeeCode == employeeCode && !e.IsDeleted, cancellationToken);
+
+        if (existingEmployeeCode)
+        {
+            return Result<Guid>.Failure($"Employee with code '{employeeCode}' already exists.");
+        }
+
+        var roleName = string.IsNullOrWhiteSpace(request.RoleName)
+            ? "Employee"
+            : request.RoleName.Trim();
+
+        var identityRole = await _roleManager.FindByNameAsync(roleName);
+        if (identityRole == null)
+        {
+            var createRoleResult = await _roleManager.CreateAsync(new ApplicationRole
+            {
+                Name = roleName,
+                Description = $"Auto-created role: {roleName}"
+            });
+
+            if (!createRoleResult.Succeeded)
+            {
+                var errors = string.Join("; ", createRoleResult.Errors.Select(e => e.Description));
+                return Result<Guid>.Failure($"Role creation failed: {errors}");
+            }
+        }
+
+        var employee = new Domain.Users.Employee(
+            employeeCode,
+            request.FullName,
+            request.Department);
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+            typeof(Domain.Users.Employee).GetProperty("Email")?.SetValue(employee, request.Email);
+
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+            typeof(Domain.Users.Employee).GetProperty("Phone")?.SetValue(employee, request.PhoneNumber);
+
+        _context.Employees.Add(employee);
+
+        // Create Identity user in AspNetUsers
+        var identityUser = new ApplicationUser
+        {
+            UserName = request.Username,
+            Email = request.Email,
+            FullName = request.FullName,
+            PhoneNumber = request.PhoneNumber,
+            IsActive = true,
+            EmailConfirmed = true
+        };
+
+        var identityCreateResult = await _userManager.CreateAsync(identityUser, request.Password);
+        if (!identityCreateResult.Succeeded)
+        {
+            var errors = string.Join("; ", identityCreateResult.Errors.Select(e => e.Description));
+            return Result<Guid>.Failure($"User registration failed: {errors}");
+        }
+
+        var addToRoleResult = await _userManager.AddToRoleAsync(identityUser, roleName);
+        if (!addToRoleResult.Succeeded)
+        {
+            var errors = string.Join("; ", addToRoleResult.Errors.Select(e => e.Description));
+            return Result<Guid>.Failure($"Role assignment failed: {errors}");
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Guid.TryParse(identityUser.Id, out var userId)
+            ? Result<Guid>.Success(userId)
+            : Result<Guid>.Success(Guid.Empty);
+    }
+
+    private async Task<string> GetOrGenerateEmployeeCodeAsync(string? requestedCode, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedCode))
+            return requestedCode.Trim();
+
+        string code;
+        do
+        {
+            code = $"EMP-{DateTime.UtcNow.Ticks.ToString()[^10..]}";
+        }
+        while (await _context.Employees.AnyAsync(e => e.EmployeeCode == code && !e.IsDeleted, cancellationToken));
+
+        return code;
+    }
+}
+========== USERS CONTROLLER ==========
+﻿using Application.Features.Users.Authentication.Commands;
+using Application.Features.Users.Authentication.Dtos;
+using Application.Features.Users.Authentication.Queries;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PAS.API.Models.Responses;
+using Swashbuckle.AspNetCore.Annotations;
+
+namespace PAS.API.Controllers;
+
+[Authorize]
+public class UsersController : BaseApiController
+{
+    private readonly ILogger<UsersController> _logger;
+
+    public UsersController(ILogger<UsersController> logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Get all users with pagination
+    /// </summary>
+    [HttpGet]
+    [SwaggerOperation(Summary = "Get all users")]
+    [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<UserDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<PaginatedResponse<UserDto>>>> GetUsers(
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] Guid? roleId = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var query = new GetUsersQuery
+        {
+            SearchTerm = searchTerm,
+            RoleId = roleId,
+            IsActive = isActive,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await Mediator.Send(query);
+
+        if (result.Succeeded && result.Data != null)
+        {
+            var paginatedResponse = new PaginatedResponse<UserDto>
+            {
+                Items = result.Data.Items,
+                PageNumber = result.Data.PageNumber,
+                TotalPages = result.Data.TotalPages,
+                TotalCount = result.Data.TotalCount,
+                HasPreviousPage = result.Data.HasPreviousPage,
+                HasNextPage = result.Data.HasNextPage
+            };
+            return Ok(ApiResponse<PaginatedResponse<UserDto>>.SuccessResponse(paginatedResponse));
+        }
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get user by ID
+    /// </summary>
+    [HttpGet("{id}")]
+    [SwaggerOperation(Summary = "Get user by ID")]
+    [ProducesResponseType(typeof(ApiResponse<UserDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<UserDetailDto>>> GetUserById(Guid id)
+    {
+        var query = new GetUserByIdQuery(id);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a new user
+    /// </summary>
+    [HttpPost]
+    [SwaggerOperation(Summary = "Create a new user")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<Guid>>> CreateUser(RegisterUserCommand command)
+    {
+        _logger.LogInformation("Creating new user: {Username}", command.Username);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update an existing user
+    /// </summary>
+    [HttpPut("{id}")]
+    [SwaggerOperation(Summary = "Update an existing user")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUser(Guid id, UpdateUserCommand command)
+    {
+        if (id != command.Id)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("ID mismatch", 400));
+        }
+
+        _logger.LogInformation("Updating user: {Id}", id);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Delete a user
+    /// </summary>
+    [HttpDelete("{id}")]
+    [SwaggerOperation(Summary = "Delete a user")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUser(Guid id)
+    {
+        _logger.LogInformation("Deleting user: {Id}", id);
+        var command = new DeleteUserCommand(id);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Activate a user
+    /// </summary>
+    [HttpPost("{id}/activate")]
+    [SwaggerOperation(Summary = "Activate a user")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivateUser(Guid id)
+    {
+        _logger.LogInformation("Activating user: {Id}", id);
+        var command = new ActivateUserCommand(id);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Deactivate a user
+    /// </summary>
+    [HttpPost("{id}/deactivate")]
+    [SwaggerOperation(Summary = "Deactivate a user")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeactivateUser(Guid id)
+    {
+        _logger.LogInformation("Deactivating user: {Id}", id);
+        var command = new DeactivateUserCommand(id);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+}
+========== UPDATE USER COMMAND ==========
+using Application.Common.Security;
+using MediatR;
+using Microsoft.AspNetCore.Identity;
+using Persistence.Identity;
+using Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Application.Features.Users.Authentication.Commands;
+
+[Authorize(Permissions = Permissions.Users.Edit)]
+public record UpdateUserCommand : IRequest<Result>
+{
+    public Guid Id { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public Guid RoleId { get; init; }
+    public bool IsActive { get; init; }
+    public string? FullName { get; init; }
+    public string? PhoneNumber { get; init; }
+    public string? Position { get; init; }
+    public string? Department { get; init; }
+    public string? EmployeeCode { get; init; }
+}
+
+public class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, Result>
+{
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly IApplicationDbContext _context;
+
+    public UpdateUserCommandHandler(
+        UserManager<ApplicationUser> userManager, 
+        RoleManager<ApplicationRole> roleManager,
+        IApplicationDbContext context)
+    {
+        _userManager = userManager;
+        _roleManager = roleManager;
+        _context = context;
+    }
+
+    public async Task<Result> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(request.Id.ToString());
+        if (user == null) return Result.Failure("User not found.");
+
+        var existing = await _userManager.FindByNameAsync(request.Username);
+        if (existing != null && existing.Id != user.Id)
+            return Result.Failure("Username already exists.");
+
+        user.UserName = request.Username;
+        user.Email = request.Email;
+        user.IsActive = request.IsActive;
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            user.FullName = request.FullName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            user.PhoneNumber = request.PhoneNumber;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Position))
+        {
+            user.Position = request.Position;
+        }
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return Result.Failure(string.Join("; ", updateResult.Errors.Select(e => e.Description)));
+
+        // Update corresponding employee record
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => (e.Email == user.Email || e.FullName == user.FullName) && !e.IsDeleted, cancellationToken);
+
+        if (employee != null)
+        {
+            typeof(Domain.Users.Employee).GetProperty("FullName")?.SetValue(employee, request.FullName ?? user.FullName);
+            typeof(Domain.Users.Employee).GetProperty("Department")?.SetValue(employee, request.Department ?? employee.Department);
+            typeof(Domain.Users.Employee).GetProperty("EmployeeCode")?.SetValue(employee, request.EmployeeCode ?? employee.EmployeeCode);
+            typeof(Domain.Users.Employee).GetProperty("Position")?.SetValue(employee, request.Position ?? employee.Position);
+            typeof(Domain.Users.Employee).GetProperty("Email")?.SetValue(employee, request.Email ?? user.Email);
+            typeof(Domain.Users.Employee).GetProperty("Phone")?.SetValue(employee, request.PhoneNumber ?? user.PhoneNumber);
+
+            _context.Employees.Update(employee);
+        }
+        else
+        {
+            var newEmployee = new Domain.Users.Employee(
+                request.EmployeeCode ?? $"EMP-{DateTime.UtcNow.Ticks.ToString()[^10..]}",
+                request.FullName ?? user.FullName,
+                request.Department ?? "General"
+            );
+
+            typeof(Domain.Users.Employee).GetProperty("Position")?.SetValue(newEmployee, request.Position);
+            typeof(Domain.Users.Employee).GetProperty("Email")?.SetValue(newEmployee, request.Email ?? user.Email);
+            typeof(Domain.Users.Employee).GetProperty("Phone")?.SetValue(newEmployee, request.PhoneNumber);
+
+            _context.Employees.Add(newEmployee);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Update role if requested and valid RoleId is provided
+        if (request.RoleId != Guid.Empty)
+        {
+            var role = await _roleManager.FindByIdAsync(request.RoleId.ToString());
+            if (role != null && !string.IsNullOrWhiteSpace(role.Name))
+            {
+                var currentRoles = await _userManager.GetRolesAsync(user);
+                if (currentRoles.Any())
+                    await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                await _userManager.AddToRoleAsync(user, role.Name);
+            }
+        }
+
+        return Result.Success();
+    }
+}
+
+========== FRONTEND REGISTER TYPESCRIPT ==========
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
+
+import { AuthApi } from '../../services/auth-api';
+import { AuthThemeService } from '../../services/auth-theme.service';
+import { RegistrationService } from '../../../../core/services/registration.service';
+
+@Component({
+  selector: 'app-register',
+  imports: [ReactiveFormsModule, RouterLink, NgOptimizedImage],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './register.html',
+  styleUrl: './register.css',
+})
+export class Register {
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly authApi = inject(AuthApi);
+  private readonly registrationService = inject(RegistrationService);
+  protected readonly theme = inject(AuthThemeService);
+
+  protected readonly roleOptions = [
+    { label: 'Admin', value: 'Admin' },
+    { label: 'Storekeeper', value: 'Storekeeper' },
+    { label: 'Employee', value: 'Employee' },
+    { label: 'Manager', value: 'Manager' },
+    { label: 'Compliance Officer', value: 'Compliance Officer' },
+  ] as const;
+
+  protected readonly submitted = signal(false);
+  protected readonly loading = signal(false);
+  protected readonly statusMessage = signal('');
+  protected readonly statusTone = signal<'neutral' | 'success' | 'error'>('neutral');
+  protected readonly showPassword = signal(false);
+  protected readonly showConfirmPassword = signal(false);
+  protected readonly themePanelOpen = signal(false);
+
+  protected readonly registerForm = this.formBuilder.nonNullable.group(
+    {
+      fullName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+      username: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(3),
+          Validators.maxLength(50),
+          Validators.pattern(/^[a-zA-Z0-9_]+$/),
+        ],
+      ],
+      phoneNumber: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(100)]],
+      department: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+      employeeCode: ['', [Validators.required, this.employeeCodeValidator.bind(this)]],
+      roleName: ['Employee', [Validators.required]],
+      password: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(8),
+          Validators.maxLength(100),
+          this.passwordStrengthValidator,
+        ],
+      ],
+      confirmPassword: ['', [Validators.required]],
+      acceptedTerms: [true, [Validators.requiredTrue]],
+    },
+    {
+      validators: [(control) => this.matchPasswordsValidator(control)],
+    },
+  );
+
+  private employeeCodeValidator(control: AbstractControl) {
+    const value = control.value;
+    if (!value) {
+      return { required: true };
+    }
+
+    // Check if it matches EMP followed by numbers only
+    const empPattern = /^EMP\d+$/;
+    if (!empPattern.test(value)) {
+      return { invalidFormat: true };
+    }
+
+    // Check length (minimum EMP + 1 digit, maximum reasonable length)
+    if (value.length < 4 || value.length > 15) {
+      return { invalidLength: true };
+    }
+
+    return null;
+  }
+
+  protected submit(): void {
+    this.submitted.set(true);
+
+    if (this.registerForm.invalid) {
+      this.statusTone.set('error');
+      this.statusMessage.set('Complete all required fields before creating the account.');
+      this.registerForm.markAllAsTouched();
+      return;
+    }
+
+    const raw = this.registerForm.getRawValue();
+
+    // Enhanced validation and data cleaning
+    const registerData = {
+      username: raw.username.trim(),
+      password: raw.password,
+      confirmPassword: raw.confirmPassword,
+      email: raw.email.trim().toLowerCase(),
+      fullName: raw.fullName.trim(),
+      roleName: raw.roleName,
+      department: raw.department.trim(),
+      employeeCode: raw.employeeCode.trim(),
+      phoneNumber: raw.phoneNumber?.trim() || undefined,
+    };
+
+    // Client-side validation
+    const validationErrors = this.validateRegistrationData(registerData);
+    if (validationErrors.length > 0) {
+      this.statusTone.set('error');
+      this.statusMessage.set(validationErrors.join(' '));
+      return;
+    }
+
+    console.log('Sending registration data:', registerData);
+
+    this.loading.set(true);
+    this.registrationService
+      .register(registerData)
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: (response) => {
+          console.log('Registration response:', response);
+          if (response.success) {
+            this.statusTone.set('success');
+            this.statusMessage.set(
+              response.message || 'Account created successfully! Please login.',
+            );
+            this.registerForm.reset({
+              fullName: '',
+              username: '',
+              phoneNumber: '',
+              email: '',
+              department: '',
+              employeeCode: '',
+              roleName: 'Employee',
+              password: '',
+              confirmPassword: '',
+              acceptedTerms: true,
+            });
+            this.submitted.set(false);
+          } else {
+            this.statusTone.set('error');
+            this.statusMessage.set(response.message || 'Registration failed. Please try again.');
+          }
+        },
+        error: (error) => {
+          console.error('Registration error:', error);
+          console.error('Error status:', error.status);
+          console.error('Error details:', error.error);
+          console.error('Full error:', JSON.stringify(error, null, 2));
+          console.error('Error text:', error.error?.text || error.statusText);
+
+          let errorMessage = 'Registration failed. Please try again.';
+
+          if (error.status === 0) {
+            errorMessage =
+              'Unable to connect to the server. Please restart the dev server (ng serve) and clear browser cache.';
+          } else if (error.status === 400) {
+            // Parse detailed validation errors
+            if (error.error?.errors) {
+              const errors = error.error.errors;
+              if (typeof errors === 'object') {
+                const errorMessages = Object.keys(errors).map((key) =>
+                  Array.isArray(errors[key]) ? errors[key].join(', ') : errors[key],
+                );
+                errorMessage = errorMessages.join(' ');
+              } else if (Array.isArray(errors)) {
+                errorMessage = errors.join(' ');
+              } else {
+                errorMessage = errors.toString();
+              }
+            } else if (error.error?.message) {
+              errorMessage = error.error.message;
+            } else {
+              errorMessage =
+                'Invalid registration data. Please check: username (3+ chars), email format, password (8+ chars), phone number format.';
+            }
+          } else if (error.status === 409) {
+            errorMessage = 'Username or email already exists. Please use different credentials.';
+          } else if (error.status === 500) {
+            errorMessage = 'Server error occurred. Please try again later.';
+          } else if (error.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error.error?.errors) {
+            errorMessage = Array.isArray(error.error.errors)
+              ? error.error.errors.join(', ')
+              : JSON.stringify(error.error.errors);
+          } else if (typeof error.error === 'string') {
+            errorMessage = error.error;
+          }
+
+          this.statusTone.set('error');
+          this.statusMessage.set(errorMessage);
+        },
+      });
+  }
+
+  private validateRegistrationData(data: any): string[] {
+    const errors: string[] = [];
+
+    // Username validation
+    if (!data.username || data.username.length < 3) {
+      errors.push('Username must be at least 3 characters.');
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(data.username)) {
+      errors.push('Username can only contain letters, numbers, and underscores.');
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      errors.push('Please enter a valid email address.');
+    }
+
+    // Password validation
+    if (data.password.length < 8) {
+      errors.push('Password must be at least 8 characters.');
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(data.password)) {
+      errors.push(
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
+      );
+    }
+
+    // Phone number validation
+    if (data.phoneNumber && !/^\d{10}$/.test(data.phoneNumber)) {
+      errors.push('Phone number must be exactly 10 digits.');
+    }
+
+    // Employee code validation
+    if (!data.employeeCode || !/^EMP\d+$/.test(data.employeeCode)) {
+      errors.push('Employee code must be in format EMP followed by numbers (e.g., EMP1234).');
+    }
+
+    // Full name validation
+    if (!data.fullName || data.fullName.length < 2) {
+      errors.push('Full name must be at least 2 characters.');
+    }
+
+    return errors;
+  }
+
+  protected togglePasswordVisibility(): void {
+    this.showPassword.update((value) => !value);
+  }
+
+  protected toggleConfirmPasswordVisibility(): void {
+    this.showConfirmPassword.update((value) => !value);
+  }
+
+  protected toggleDarkMode(): void {
+    this.theme.toggleDarkMode();
+  }
+
+  protected toggleThemePanel(): void {
+    this.themePanelOpen.update((value) => !value);
+  }
+
+  protected closeThemePanel(): void {
+    this.themePanelOpen.set(false);
+  }
+
+  protected setPrimary(optionId: string): void {
+    this.theme.setPrimary(optionId);
+    this.themePanelOpen.set(false);
+  }
+
+  protected passwordMismatch(): boolean {
+    return (
+      this.registerForm.hasError('passwordMismatch') &&
+      (this.registerForm.controls.confirmPassword.touched || this.submitted())
+    );
+  }
+
+  protected showControlError(
+    controlName:
+      | 'fullName'
+      | 'username'
+      | 'phoneNumber'
+      | 'email'
+      | 'department'
+      | 'employeeCode'
+      | 'roleName'
+      | 'password'
+      | 'confirmPassword'
+      | 'acceptedTerms',
+  ): boolean {
+    const control = this.registerForm.controls[controlName];
+    return control.invalid && (control.touched || this.submitted());
+  }
+
+  private matchPasswordsValidator(control: AbstractControl) {
+    const password = control.get('password')?.value;
+    const confirmPassword = control.get('confirmPassword')?.value;
+
+    if (!password || !confirmPassword) {
+      return null;
+    }
+
+    return password === confirmPassword ? null : { passwordMismatch: true };
+  }
+
+  private passwordStrengthValidator(control: AbstractControl) {
+    const password = control.value;
+    if (!password) {
+      return null;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumeric = /[0-9]/.test(password);
+
+    const valid = hasUpperCase && hasLowerCase && hasNumeric;
+
+    if (!valid) {
+      return { passwordStrength: true };
+    }
+
+    return null;
+  }
+}
+
+========== FRONTEND REGISTER HTML ==========
+<section class="auth-page auth-glass" aria-labelledby="register-title">
+  <div class="auth-background">
+    <img src="/assets/images/afr.jpg" alt="Background" class="bg-image" />
+    <div class="bg-overlay"></div>
+    <div class="bg-text-watermark">
+      <div class="watermark-scroll">
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+      </div>
+    </div>
+    <div class="bg-text-watermark bg-text-watermark--bottom">
+      <div class="watermark-scroll watermark-scroll--reverse">
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+        <span class="watermark-text">AFRICOM TECHNOLOGIES</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="auth-toolbar" aria-label="Theme controls">
+    <button
+      type="button"
+      class="icon-btn"
+      (click)="toggleDarkMode()"
+      [attr.aria-pressed]="theme.darkMode()"
+      [attr.aria-label]="theme.darkMode() ? 'Switch to light mode' : 'Switch to dark mode'"
+      title="{{ theme.darkMode() ? 'Switch to light mode' : 'Switch to dark mode' }}"
+    >
+      <i
+        class="bi"
+        [class.bi-sun-fill]="theme.darkMode()"
+        [class.bi-moon-stars-fill]="!theme.darkMode()"
+      ></i>
+    </button>
+    <button
+      type="button"
+      class="icon-btn icon-btn--primary"
+      (click)="toggleThemePanel()"
+      [attr.aria-expanded]="themePanelOpen()"
+      aria-controls="auth-theme-panel"
+      aria-label="Open primary palette"
+      title="Open primary palette"
+    >
+      <i class="bi bi-palette2"></i>
+    </button>
+    @if (themePanelOpen()) {
+      <div class="theme-backdrop" (click)="closeThemePanel()" aria-hidden="true"></div>
+      <section id="auth-theme-panel" class="theme-panel" aria-label="Primary colors">
+        <h3>Primary</h3>
+        <div class="primary-swatches">
+          @for (option of theme.primaryOptions; track option.id) {
+            <button
+              type="button"
+              class="swatch"
+              [class.active]="theme.selectedPrimary() === option.id"
+              [style.background]="option.value"
+              [attr.aria-label]="'Set primary color ' + option.label"
+              title="{{ 'Set primary color ' + option.label }}"
+              (click)="setPrimary(option.id)"
+            ></button>
+          }
+        </div>
+      </section>
+    }
+  </header>
+
+  <article class="auth-card auth-card--wide">
+    <img
+      class="auth-logo auth-logo--wordmark"
+      ngSrc="/assets/images/africom-logo.png"
+      width="540"
+      height="140"
+      alt="AFRICOM Technologies"
+      priority
+    />
+    <h1 id="register-title">Create Account</h1>
+    <p class="auth-subtitle">Set up your account to continue</p>
+
+    <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="submit()" novalidate>
+      <label class="auth-label" for="register-full-name">Full name</label>
+      <div class="input-shell">
+        <i class="bi bi-person input-icon"></i>
+        <input
+          id="register-full-name"
+          type="text"
+          formControlName="fullName"
+          placeholder="Full Name"
+          autocomplete="name"
+        />
+      </div>
+      @if (showControlError('fullName') && registerForm.controls.fullName.hasError('required')) {
+        <p class="field-error">Full name is required.</p>
+      }
+
+      <label class="auth-label" for="register-username">Username</label>
+      <div class="input-shell">
+        <i class="bi bi-at input-icon"></i>
+        <input
+          id="register-username"
+          type="text"
+          formControlName="username"
+          placeholder="Username"
+          autocomplete="username"
+        />
+      </div>
+      @if (showControlError('username') && registerForm.controls.username.hasError('required')) {
+        <p class="field-error">Username is required.</p>
+      }
+      @if (showControlError('username') && registerForm.controls.username.hasError('minlength')) {
+        <p class="field-error">Username must be at least 3 characters.</p>
+      }
+      @if (showControlError('username') && registerForm.controls.username.hasError('pattern')) {
+        <p class="field-error">Username can only contain letters, numbers, and underscores.</p>
+      }
+
+      <label class="auth-label" for="register-phone">Phone number</label>
+      <div class="input-shell">
+        <i class="bi bi-telephone input-icon"></i>
+        <input
+          id="register-phone"
+          type="tel"
+          formControlName="phoneNumber"
+          placeholder="Phone Number"
+          autocomplete="tel"
+          maxlength="10"
+        />
+      </div>
+      @if (
+        showControlError('phoneNumber') && registerForm.controls.phoneNumber.hasError('required')
+      ) {
+        <p class="field-error">Phone number is required.</p>
+      }
+      @if (
+        showControlError('phoneNumber') && registerForm.controls.phoneNumber.hasError('pattern')
+      ) {
+        <p class="field-error">Please enter a valid phone number.</p>
+      }
+
+      <label class="auth-label" for="register-email">Email</label>
+      <div class="input-shell">
+        <i class="bi bi-envelope input-icon"></i>
+        <input
+          id="register-email"
+          type="email"
+          formControlName="email"
+          placeholder="Email address"
+          autocomplete="email"
+        />
+      </div>
+      @if (showControlError('email') && registerForm.controls.email.hasError('required')) {
+        <p class="field-error">Email is required.</p>
+      }
+      @if (showControlError('email') && registerForm.controls.email.hasError('email')) {
+        <p class="field-error">Please enter a valid email address.</p>
+      }
+
+      <label class="auth-label" for="register-department">Department</label>
+      <div class="input-shell">
+        <i class="bi bi-building input-icon"></i>
+        <input
+          id="register-department"
+          type="text"
+          formControlName="department"
+          placeholder="Department"
+          autocomplete="organization-title"
+        />
+      </div>
+      @if (
+        showControlError('department') && registerForm.controls.department.hasError('required')
+      ) {
+        <p class="field-error">Department is required.</p>
+      }
+
+      <label class="auth-label" for="register-employee-code">Employee code</label>
+      <div class="input-shell">
+        <i class="bi bi-hash input-icon"></i>
+        <input
+          id="register-employee-code"
+          type="text"
+          formControlName="employeeCode"
+          placeholder="EMP1234"
+          autocomplete="off"
+        />
+      </div>
+      @if (
+        showControlError('employeeCode') && registerForm.controls.employeeCode.hasError('required')
+      ) {
+        <p class="field-error">Employee code is required.</p>
+      }
+      @if (
+        showControlError('employeeCode') &&
+        registerForm.controls.employeeCode.hasError('invalidFormat')
+      ) {
+        <p class="field-error">
+          Employee code must be in format EMP followed by numbers (e.g., EMP1234).
+        </p>
+      }
+      @if (
+        showControlError('employeeCode') &&
+        registerForm.controls.employeeCode.hasError('invalidLength')
+      ) {
+        <p class="field-error">Employee code must be between 4-15 characters long.</p>
+      }
+
+      <label class="auth-label" for="register-password">Password</label>
+      <div class="input-shell input-shell--with-action">
+        <i class="bi bi-lock input-icon"></i>
+        <input
+          id="register-password"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          placeholder="Password"
+          autocomplete="new-password"
+        />
+        <button
+          type="button"
+          class="input-action"
+          (click)="togglePasswordVisibility()"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          title="{{ showPassword() ? 'Hide password' : 'Show password' }}"
+        >
+          <i class="bi" [class.bi-eye-slash]="showPassword()" [class.bi-eye]="!showPassword()"></i>
+        </button>
+      </div>
+      @if (showControlError('password') && registerForm.controls.password.hasError('required')) {
+        <p class="field-error">Password is required.</p>
+      }
+      @if (showControlError('password') && registerForm.controls.password.hasError('minlength')) {
+        <p class="field-error">Password must be at least 8 characters.</p>
+      }
+      @if (
+        showControlError('password') && registerForm.controls.password.hasError('passwordStrength')
+      ) {
+        <p class="field-error">
+          Password must contain at least one uppercase letter, one lowercase letter, and one number.
+        </p>
+      }
+
+      <label class="auth-label" for="register-confirm-password">Confirm password</label>
+      <div class="input-shell input-shell--with-action">
+        <i class="bi bi-lock-fill input-icon"></i>
+        <input
+          id="register-confirm-password"
+          [type]="showConfirmPassword() ? 'text' : 'password'"
+          formControlName="confirmPassword"
+          placeholder="Confirm Password"
+          autocomplete="new-password"
+        />
+        <button
+          type="button"
+          class="input-action"
+          (click)="toggleConfirmPasswordVisibility()"
+          [attr.aria-label]="
+            showConfirmPassword() ? 'Hide confirm password' : 'Show confirm password'
+          "
+          title="{{ showConfirmPassword() ? 'Hide confirm password' : 'Show confirm password' }}"
+        >
+          <i
+            class="bi"
+            [class.bi-eye-slash]="showConfirmPassword()"
+            [class.bi-eye]="!showConfirmPassword()"
+          ></i>
+        </button>
+      </div>
+      @if (
+        showControlError('confirmPassword') &&
+        registerForm.controls.confirmPassword.hasError('required')
+      ) {
+        <p class="field-error">Confirm password is required.</p>
+      }
+      @if (passwordMismatch()) {
+        <p class="field-error">Passwords do not match.</p>
+      }
+
+      <label class="auth-label" for="register-role">Role</label>
+      <div class="input-shell input-shell--select">
+        <i class="bi bi-shield-lock input-icon"></i>
+        <select id="register-role" formControlName="roleName" class="select-field">
+          @for (role of roleOptions; track role.value) {
+            <option [value]="role.value">{{ role.label }}</option>
+          }
+        </select>
+      </div>
+      @if (showControlError('roleName') && registerForm.controls.roleName.hasError('required')) {
+        <p class="field-error">Please select a role.</p>
+      }
+
+      <label class="remember-row">
+        <input type="checkbox" formControlName="acceptedTerms" />
+        <span>I agree to the terms and privacy policy</span>
+      </label>
+      @if (showControlError('acceptedTerms')) {
+        <p class="field-error">You must accept terms to continue.</p>
+      }
+
+      <button type="submit" class="btn-primary" [disabled]="loading()">
+        {{ loading() ? 'Creating account...' : 'Create Account' }}
+      </button>
+
+      @if (statusMessage()) {
+        <p
+          class="status-text"
+          [class.status-text--error]="statusTone() === 'error'"
+          [class.status-text--success]="statusTone() === 'success'"
+        >
+          {{ statusMessage() }}
+        </p>
+      }
+    </form>
+
+    <p class="auth-switch-row">
+      Already have an account?
+      <a routerLink="/auth/login">Login</a>
+    </p>
+  </article>
+</section>
