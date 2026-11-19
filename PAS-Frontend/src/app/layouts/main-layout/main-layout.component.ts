@@ -18,6 +18,7 @@ import {
 } from '../../core/services/workflow.service';
 import { ComplianceDataService } from '../../core/services/compliance-data.service';
 import { ManagerDataService } from '../../core/services/manager-data.service';
+import { RiskAlertService } from '../../core/services/risk-alert.service';
 
 interface ThemeOption {
   id: string;
@@ -54,6 +55,7 @@ export class MainLayoutComponent implements OnInit {
   private readonly workflowService = inject(WorkflowService);
   private readonly complianceData = inject(ComplianceDataService);
   private readonly managerData = inject(ManagerDataService);
+  private readonly riskAlertService = inject(RiskAlertService);
 
   protected menuItems: MenuItem[] = [];
   private readonly workflowNotificationTick = signal(0);
@@ -279,6 +281,10 @@ export class MainLayoutComponent implements OnInit {
           status.includes('awaiting')
         );
       }).length;
+      this.applyComplianceBadges();
+    });
+
+    this.riskAlertService.alerts$.subscribe(() => {
       this.applyComplianceBadges();
     });
 
@@ -664,15 +670,23 @@ export class MainLayoutComponent implements OnInit {
   }
 
   private applyComplianceBadges(): void {
-    if (this.compliancePendingCount === null) return;
-
     const currentUrl = this.currentRoute();
+    const riskAlertsNewCount = this.riskAlertService.newCount();
+
     this.menuItems = this.menuItems.map((item) => ({
       ...item,
       children: item.children?.map((child) => {
         if (child.route === '/compliance-officer/audits/pending') {
           const isActive = currentUrl.includes('/compliance-officer/audits/pending');
-          return { ...child, badge: isActive ? undefined : (this.compliancePendingCount! || undefined) };
+          const pendingBadge = isActive ? undefined : (this.compliancePendingCount ?? undefined);
+          return { ...child, badge: pendingBadge };
+        }
+        if (child.route === '/compliance-officer/risk-alerts') {
+          return {
+            ...child,
+            badge: riskAlertsNewCount > 0 ? riskAlertsNewCount : undefined,
+            badgeColor: 'danger',
+          };
         }
         return child;
       }),

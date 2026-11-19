@@ -1,9 +1,9 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { WorkflowService, NotificationMessage, UserRole } from '../../../../core/services/workflow.service';
-import { CurrentUserService } from '../../../../core/services/current-user.service';
+import { RiskAlert, RiskAlertStatus, RiskSeverity } from '../../../../core/models/risk-alert.model';
+import { RiskAlertService } from '../../../../core/services/risk-alert.service';
 
 @Component({
   selector: 'app-risk-alerts-page',
@@ -12,94 +12,142 @@ import { CurrentUserService } from '../../../../core/services/current-user.servi
   templateUrl: './risk-alerts-page.component.html',
   styleUrl: './risk-alerts-page.component.scss',
 })
-export class RiskAlertsPageComponent implements OnInit {
-  private readonly workflowService = inject(WorkflowService);
-  private readonly currentUserService = inject(CurrentUserService);
+export class RiskAlertsPageComponent {
+  private readonly riskAlertService = inject(RiskAlertService);
   private readonly router = inject(Router);
 
-  searchQuery = '';
-  filterType = signal<'All' | 'unread' | 'info' | 'warning' | 'error' | 'success'>('All');
+  // Filters state
+  readonly searchQuery = signal('');
+  readonly selectedSeverity = signal<'All' | RiskSeverity>('All');
+  readonly selectedStatus = signal<'All' | RiskAlertStatus>('All');
 
-  // Load all notifications
-  protected readonly allNotifications = computed<NotificationMessage[]>(() => {
-    return this.workflowService.getAllNotifications();
-  });
+  // Modal inspection state
+  readonly selectedAlertForDetails = signal<RiskAlert | null>(null);
 
-  // Filtered notifications list
-  protected readonly filteredNotifications = computed<NotificationMessage[]>(() => {
-    let list = this.allNotifications();
-    const query = this.searchQuery.trim().toLowerCase();
+  // Alerts from RiskAlertService
+  readonly allAlerts = this.riskAlertService.alerts;
+  readonly newCount = this.riskAlertService.newCount;
 
+  // Severity summary counts
+  readonly criticalCount = computed(() => this.allAlerts().filter((a) => a.severity === 'Critical').length);
+  readonly highCount = computed(() => this.allAlerts().filter((a) => a.severity === 'High').length);
+  readonly mediumCount = computed(() => this.allAlerts().filter((a) => a.severity === 'Medium').length);
+  readonly lowCount = computed(() => this.allAlerts().filter((a) => a.severity === 'Low').length);
+
+  readonly acknowledgedCount = computed(() => this.allAlerts().filter((a) => a.status === 'Acknowledged').length);
+  readonly resolvedCount = computed(() => this.allAlerts().filter((a) => a.status === 'Resolved').length);
+
+  // Filtered alerts
+  readonly filteredAlerts = computed<RiskAlert[]>(() => {
+    let list = this.allAlerts();
+
+    const query = this.searchQuery().trim().toLowerCase();
     if (query) {
-      list = list.filter(n => 
-        n.title.toLowerCase().includes(query) || 
-        n.message.toLowerCase().includes(query)
+      list = list.filter(
+        (a) =>
+          a.title.toLowerCase().includes(query) ||
+          a.description.toLowerCase().includes(query) ||
+          (a.relatedLabel && a.relatedLabel.toLowerCase().includes(query)) ||
+          a.relatedType.toLowerCase().includes(query),
       );
     }
 
-    const type = this.filterType();
-    if (type !== 'All') {
-      if (type === 'unread') {
-        list = list.filter(n => !n.isRead);
-      } else {
-        list = list.filter(n => n.type === type);
+    const sev = this.selectedSeverity();
+    if (sev !== 'All') {
+      list = list.filter((a) => a.severity === sev);
+    }
+
+    const st = this.selectedStatus();
+    if (st !== 'All') {
+      list = list.filter((a) => a.status === st);
+    }
+
+    return list;
+  });
+
+  setSeverityFilter(severity: 'All' | RiskSeverity): void {
+    this.selectedSeverity.set(severity);
+  }
+
+  setStatusFilter(status: 'All' | RiskAlertStatus): void {
+    this.selectedStatus.set(status);
+  }
+
+  onSearchChange(val: string): void {
+    this.searchQuery.set(val);
+  }
+
+  resetFilters(): void {
+    this.searchQuery.set('');
+    this.selectedSeverity.set('All');
+    this.selectedStatus.set('All');
+  }
+
+  acknowledgeAlert(id: string, event?: Event): void {
+    event?.stopPropagation();
+    this.riskAlertService.acknowledge(id);
+    if (this.selectedAlertForDetails()?.id === id) {
+      const updated = this.riskAlertService.getAlertById(id);
+      if (updated) {
+        this.selectedAlertForDetails.set(updated);
       }
     }
-
-    // Sort newest first
-    return [...list].sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
-  });
-
-  // Unread badge count
-  protected readonly unreadCount = computed(() => {
-    return this.allNotifications().filter(n => !n.isRead).length;
-  });
-
-  ngOnInit(): void {
-    // Ensure notifications are loaded
-    this.workflowService.escalateStalePendingRequests();
   }
 
-  getTypeIcon(type: 'info' | 'success' | 'warning' | 'error'): string {
-    switch (type) {
-      case 'error':
-        return 'bi-exclamation-octagon-fill';
-      case 'warning':
-        return 'bi-exclamation-triangle-fill';
-      case 'success':
-        return 'bi-check-circle-fill';
-      case 'info':
-      default:
-        return 'bi-info-circle-fill';
+  resolveAlert(id: string, event?: Event): void {
+    event?.stopPropagation();
+    this.riskAlertService.resolve(id);
+    if (this.selectedAlertForDetails()?.id === id) {
+      const updated = this.riskAlertService.getAlertById(id);
+      if (updated) {
+        this.selectedAlertForDetails.set(updated);
+      }
     }
   }
 
-  markAsRead(id: string): void {
-    this.workflowService.markNotificationAsRead(id);
+  openDetails(alert: RiskAlert): void {
+    this.selectedAlertForDetails.set(alert);
   }
 
-  markAllAsRead(): void {
-    const user = this.currentUserService.getCurrentUserValue();
-    const userId = user?.id || '';
-    this.workflowService.markAllNotificationsAsRead(userId, 'Compliance');
-    alert('All compliance notifications marked as read.');
+  closeDetails(): void {
+    this.selectedAlertForDetails.set(null);
   }
 
-  dismissNotification(id: string): void {
-    this.workflowService.dismissNotification(id);
+  refreshAlerts(): void {
+    this.riskAlertService.refreshAlerts();
   }
 
-  takeAction(notif: NotificationMessage): void {
-    this.markAsRead(notif.id);
-    if (notif.actionUrl) {
-      void this.router.navigate([notif.actionUrl]);
+  navigateToRelated(alert: RiskAlert): void {
+    this.closeDetails();
+    if (alert.relatedType === 'ServiceRequest') {
+      void this.router.navigate(['/compliance-officer/dashboard']);
     } else {
       void this.router.navigate(['/compliance-officer/dashboard']);
     }
   }
 
-  refreshAlerts(): void {
-    this.workflowService.escalateStalePendingRequests();
-    alert('Notifications synchronized successfully!');
+  getSeverityIcon(severity: RiskSeverity): string {
+    switch (severity) {
+      case 'Critical':
+        return 'bi-exclamation-octagon-fill';
+      case 'High':
+        return 'bi-exclamation-triangle-fill';
+      case 'Medium':
+        return 'bi-info-circle-fill';
+      case 'Low':
+      default:
+        return 'bi-check-circle-fill';
+    }
+  }
+
+  getStatusIcon(status: RiskAlertStatus): string {
+    switch (status) {
+      case 'New':
+        return 'bi-bell-fill';
+      case 'Acknowledged':
+        return 'bi-eye-fill';
+      case 'Resolved':
+        return 'bi-check2-circle';
+    }
   }
 }

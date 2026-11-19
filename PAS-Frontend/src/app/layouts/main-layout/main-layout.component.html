@@ -240,7 +240,7 @@
                         <i [class]="child.icon"></i>
                         <span>{{ child.label }}</span>
                         @if (child.badge) {
-                          <span class="sakai-badge">{{ child.badge }}</span>
+                          <span class="sakai-badge" [class.sakai-badge--danger]="child.badgeColor === 'danger'">{{ child.badge }}</span>
                         }
                       </a>
                     }
