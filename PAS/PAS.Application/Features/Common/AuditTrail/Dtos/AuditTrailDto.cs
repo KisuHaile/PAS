@@ -22,13 +22,23 @@ public class AuditTrailDto : IMapFrom<Domain.Common.AuditTrail>
     }
 }
 
-public class AuditTrailListDto
+public class AuditTrailListDto : IMapFrom<Domain.Common.AuditTrail>
 {
     public Guid Id { get; set; }
+    public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string Action { get; set; } = string.Empty;
     public string EntityName { get; set; } = string.Empty;
+    public Guid EntityId { get; set; }
     public DateTime ActionDate { get; set; }
+    public string Details { get; set; } = string.Empty;
+
+    public void Mapping(Profile profile)
+    {
+        profile.CreateMap<Domain.Common.AuditTrail, AuditTrailListDto>()
+            .ForMember(d => d.UserName, opt => opt.Ignore())
+            .ForMember(d => d.Details, opt => opt.MapFrom(s => $"{s.Action} on {s.EntityName} with ID: {s.EntityId}"));
+    }
 }
 
 public class AuditTrailDetailDto : AuditTrailDto
